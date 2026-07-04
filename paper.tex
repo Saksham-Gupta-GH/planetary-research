@@ -241,6 +241,13 @@ TOI-700 e     & 9.06 & 0.953 & 295.1 & 1.27 \\
 \end{center}
 \end{table}
 
+\subsection{Detailed Analysis of Top Candidates}
+An examination of the highest-ranking candidates from the ESI scoring matrix reveals a strong preference for multi-planet systems around M-dwarf host stars. \textbf{Kepler-1649 c} emerges as the highest-scoring candidate (ESI = 0.936) due to its near-identical structural dimensions to Earth ($1.06 R_\oplus$) and an equilibrium temperature of $234.0$ K. Its position within the conservative habitable zone of its host star ensures that any reasonable atmospheric greenhouse effect could easily push surface temperatures above the freezing point of water, making it a prime candidate for future atmospheric characterization.
+
+Similarly, the TRAPPIST-1 system heavily dominates the top tier, with planets \textbf{e}, \textbf{d}, and \textbf{f} all scoring above 0.915. The pipeline correctly recognizes TRAPPIST-1 e as exceptionally Earth-like, penalizing it only slightly for its lower radius ($0.92 R_\oplus$) which incrementally reduces its calculated escape velocity. The presence of three planets from a single system in the top ten underscores the unique architecture of compact M-dwarf systems, where the habitable zone is compressed tightly around the host star, allowing multiple terrestrial planets to co-exist within the thermodynamic window for liquid water. 
+
+Unlike prior manual catalogs, this algorithm inherently scales these multi-planet systems against singular targets like \textbf{Kepler-452 b} (often dubbed "Earth's cousin"). While Kepler-452 b orbits a G-type star similar to the Sun, its larger radius ($1.63 R_\oplus$) pushes it closer to the sub-Neptune boundary, resulting in a slightly lower ESI score (0.919) compared to the smaller, definitively rocky M-dwarf planets. By evaluating all planets in a unified, standardized dimensional space, the pipeline effectively demonstrates that the most Earth-like physical environments in the galaxy may actually orbit stars drastically different from our own.
+
 
 \section{Novelty and Contributions}
 This framework presents several unique innovations in comparison to existing scientific literature:
