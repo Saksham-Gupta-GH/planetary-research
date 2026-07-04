@@ -115,7 +115,6 @@ def rectify_thermal_anomalies(df, albedo=0.3):
     # Using np.where because of nan propagation
     df['pl_eqt'] = np.where(anomaly_mask & ~calculated_teq.isna(), calculated_teq, df['pl_eqt'])
     return df
-df_feat = rectify_thermal_anomalies(df_feat)
 
 print("Applying KNN Imputation for remaining values...")
 scaler_temp = StandardScaler()
@@ -125,6 +124,8 @@ imputer = KNNImputer(n_neighbors=5)
 imputed_scaled = imputer.fit_transform(scaled_temp)
 imputed_data = scaler_temp.inverse_transform(imputed_scaled)
 df_feat[FEATURES] = imputed_data
+
+df_feat = rectify_thermal_anomalies(df_feat)
 
 print(f"Remaining NaNs after imputation: {df_feat[FEATURES].isnull().sum().sum()}")
 print(f"Final usable rows: {df_feat.shape[0]}")
