@@ -539,6 +539,7 @@ axes[1].set_ylabel("Silhouette Score", fontsize=11)
 axes[1].set_title("Silhouette Score vs k\n(extreme outliers removed)",
                   fontsize=12, fontweight="bold")
 axes[1].legend(); axes[1].grid(True, alpha=0.4)
+axes[1].set_ylim(bottom=0)
 
 plt.suptitle(f"K-Means Cluster Selection — k={K_FINAL} chosen from elbow analysis",
              fontsize=13, fontweight="bold")
