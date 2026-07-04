@@ -22,6 +22,8 @@ ALL FIXES INTEGRATED:
 
 import pandas as pd
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import seaborn as sns
@@ -684,6 +686,22 @@ sc = ax.scatter(
     linewidths=0.2
 )
 
+# Highlight target planets
+target_mask = df_feat["pl_name"].isin(TARGET_PLANETS)
+if target_mask.any():
+    ax.scatter(
+        X_adjusted[target_mask, 0],
+        X_adjusted[target_mask, 1],
+        color="red",
+        marker="*",
+        s=120,
+        edgecolors="black",
+        linewidths=1.0,
+        label="Target Planets",
+        zorder=10
+    )
+    ax.legend()
+
 cbar = plt.colorbar(sc, ax=ax, ticks=range(K_FINAL))
 cbar.set_label("K-Means Cluster")
 
@@ -694,7 +712,10 @@ ax.set_title("K-Means Clusters - Separation (PCA-based)", fontweight="bold")
 ax.grid(True, alpha=0.3)
 plt.tight_layout()
 plt.savefig("plot10_kmeans_islands.png", dpi=150)
-plt.show()
+plt.show(block=False)
+plt.close()
+
+
 
 
 # Plot 11: Cluster Sizes (FIXED colormap)
@@ -710,7 +731,8 @@ for i, v in zip(cluster_counts.index, cluster_counts.values):
     ax.text(i, v + 5, str(v), ha="center", fontsize=9)
 plt.tight_layout()
 plt.savefig("plot11_kmeans_cluster_sizes.png", dpi=150)
-plt.show()
+plt.show(block=False)
+plt.close()
 print("  -> Plot 11 saved: K-Means Cluster Sizes")
 
 # Plot 12: Cluster Summary Table (BETTER THAN HEATMAP)
@@ -920,6 +942,15 @@ sc1 = axes[0].scatter(
     edgecolors="black",
     linewidths=0.2
 )
+
+target_mask = df_feat["pl_name"].isin(TARGET_PLANETS)
+if target_mask.any():
+    axes[0].scatter(
+        X_adjusted_km[target_mask, 0],
+        X_adjusted_km[target_mask, 1],
+        color="red", marker="*", s=120, edgecolors="black", linewidths=1.0, zorder=10
+    )
+
 axes[0].set_title("K-Means", fontweight="bold")
 axes[0].grid(True, alpha=0.3)
 
@@ -936,6 +967,15 @@ sc2 = axes[1].scatter(
     edgecolors="black",
     linewidths=0.2
 )
+
+if target_mask.any():
+    axes[1].scatter(
+        X_adjusted_agg[target_mask, 0],
+        X_adjusted_agg[target_mask, 1],
+        color="red", marker="*", s=120, edgecolors="black", linewidths=1.0, zorder=10, label="Target Planets"
+    )
+    axes[1].legend()
+
 axes[1].set_title("Agglomerative", fontweight="bold")
 axes[1].grid(True, alpha=0.3)
 
@@ -945,6 +985,80 @@ plt.suptitle("K-Means vs Agglomerative Separation",
 plt.tight_layout()
 plt.savefig("plot10C_comparison.png", dpi=150)
 plt.show()
+plt.close()
+
+# ============================================================
+# Plot 10B: Agglomerative Clusters — Smart Separated Island View
+# ============================================================
+fig, ax = plt.subplots(figsize=(9, 6))
+
+sc_agg = ax.scatter(
+    X_adjusted_agg[:, 0],
+    X_adjusted_agg[:, 1],
+    c=df_feat["agg_cluster"],
+    cmap=plt.get_cmap("tab10", K_FINAL),
+    vmin=-0.5,
+    vmax=K_FINAL - 0.5,
+    s=18,
+    alpha=0.8,
+    edgecolors="black",
+    linewidths=0.2
+)
+
+# Highlight target planets
+target_mask = df_feat["pl_name"].isin(TARGET_PLANETS)
+if target_mask.any():
+    ax.scatter(
+        X_adjusted_agg[target_mask, 0],
+        X_adjusted_agg[target_mask, 1],
+        color="red",
+        marker="*",
+        s=120,
+        edgecolors="black",
+        linewidths=1.0,
+        label="Target Planets",
+        zorder=10
+    )
+    ax.legend()
+
+cbar_agg = plt.colorbar(sc_agg, ax=ax, ticks=range(K_FINAL))
+cbar_agg.set_label("Agglomerative Cluster")
+
+ax.set_xlabel("PCA Component 1")
+ax.set_ylabel("PCA Component 2")
+ax.set_title("Agglomerative Clusters - Separation (PCA-based)", fontweight="bold")
+
+ax.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.savefig("plot10B_agglomerative_islands.png", dpi=150)
+plt.show()
+plt.close()
+
+# Plot 11C: Cluster Sizes Comparison
+fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+km_counts = df_feat["km_cluster"].value_counts().sort_index()
+agg_counts = df_feat["agg_cluster"].value_counts().sort_index()
+
+axes[0].bar(km_counts.index, km_counts.values, color=tab10_colors, edgecolor="black")
+axes[0].set_xlabel("Cluster ID", fontsize=11)
+axes[0].set_ylabel("Number of Planets", fontsize=11)
+axes[0].set_title(f"K-Means Cluster Sizes", fontsize=12, fontweight="bold")
+axes[0].grid(axis="y", alpha=0.3)
+for i, v in zip(km_counts.index, km_counts.values):
+    axes[0].text(i, v + 5, str(v), ha="center", fontsize=9)
+
+axes[1].bar(agg_counts.index, agg_counts.values, color=tab10_colors, edgecolor="black")
+axes[1].set_xlabel("Cluster ID", fontsize=11)
+axes[1].set_title(f"Agglomerative Cluster Sizes", fontsize=12, fontweight="bold")
+axes[1].grid(axis="y", alpha=0.3)
+for i, v in zip(agg_counts.index, agg_counts.values):
+    axes[1].text(i, v + 5, str(v), ha="center", fontsize=9)
+
+plt.suptitle("K-Means vs Agglomerative Cluster Distributions", fontsize=14, fontweight="bold")
+plt.tight_layout()
+plt.savefig("plot11C_cluster_sizes_comparison.png", dpi=150)
+plt.show(block=False)
+plt.close()
 
 # Plot 15: Side-by-side Radius vs Temperature
 fig, axes = plt.subplots(1, 2, figsize=(16, 6))
