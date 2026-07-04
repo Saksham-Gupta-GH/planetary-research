@@ -88,7 +88,13 @@ The generalized ESI formula is a weighted geometric mean:
 To capture both the structural composition and the atmospheric retention capability of the planet, the ESI utilizes four fundamental parameters: Mean Radius, Bulk Density, Escape Velocity, and Surface Temperature. This effectively balances the structural properties against the thermodynamic environment. For improved readability and integer-like comparative ranking throughout this paper, the final computed ESI scores are scaled by a factor of 10.
 
 \section{Data Acquisition and Curatorial Methodology}
-Data is queried directly from the NASA Exoplanet Archive via the International Virtual Observatory Alliance (IVOA) compliant Table Access Protocol (TAP). The pipeline targets the Planetary Systems Composite Parameters (\texttt{pscomppars}) table \cite{pscomppars_table}. 
+Data is queried directly from the NASA Exoplanet Archive via the International Virtual Observatory Alliance (IVOA) compliant Table Access Protocol (TAP). The pipeline targets the Planetary Systems Composite Parameters (\texttt{pscomppars}) table \cite{pscomppars_table}. The raw initial feature distributions prior to missing data imputation are presented in Figure \ref{fig:feature_distributions}.
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=\linewidth]{plot02_feature_distributions.png}}
+\caption{Distribution of core physical planetary and stellar features prior to normalization and imputation.}
+\label{fig:feature_distributions}
+\end{figure} 
 
 To evaluate recovery rates without circular logic, an external validation dataset was created from twenty expert-curated target planets that are generally agreed to reside in or near their respective habitable zones. The deduplicated target list is provided in Table \ref{tab:targets}.
 
