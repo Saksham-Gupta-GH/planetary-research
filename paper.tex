@@ -127,11 +127,11 @@ Kepler-186 f     & Kepler-452 b \\
 
 \subsection{Anomaly Resolution: The Kepler-186 f Conundrum}
 
-\begin{figure*}[htbp]
-\centerline{\includegraphics[width=\textwidth]{plot09_elbow_silhouette.png}}
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=\columnwidth]{plot09_elbow_silhouette.png}}
 \caption{K-Means optimal cluster selection. The visual knee in inertia and peak in silhouette score consistently indicate $k=5$.}
 \label{fig:elbow}
-\end{figure*}
+\end{figure}
 
 Raw archive data is imperfect. A prime example is the exoplanet Kepler-186 f. In unfiltered datasets, Kepler-186 f frequently appears with an equilibrium temperature ($T_{eq}$) of approximately 697 K, which is physically impossible for a planet orbiting an M-dwarf star at a semi-major axis of 0.43 AU. If a clustering pipeline utilizes "target protection", it actively masks this massive data error, completely invalidating the algorithm's predictive integrity. The revised KDD pipeline removes all target protection and recalculates anomalous temperatures post-imputation using a physics-based thermal rectification model assuming an Earth-like Bond albedo of 0.3. 
 
