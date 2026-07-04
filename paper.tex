@@ -90,11 +90,11 @@ To capture both the structural composition and the atmospheric retention capabil
 \section{Data Acquisition and Curatorial Methodology}
 Data is queried directly from the NASA Exoplanet Archive via the International Virtual Observatory Alliance (IVOA) compliant Table Access Protocol (TAP). The pipeline targets the Planetary Systems Composite Parameters (\texttt{pscomppars}) table \cite{pscomppars_table}. The raw initial feature distributions prior to missing data imputation are presented in Figure \ref{fig:feature_distributions}.
 
-\begin{figure}[htbp]
-\centerline{\includegraphics[width=\linewidth]{plot02_feature_distributions.png}}
-\caption{Distribution of core physical planetary and stellar features prior to normalization and imputation.}
+\begin{figure*}[htbp]
+\centerline{\includegraphics[width=\textwidth]{plot02_feature_distributions.png}}
+\caption{Distributions of five primary structural features after outlier removal.}
 \label{fig:feature_distributions}
-\end{figure} 
+\end{figure*} 
 
 To evaluate recovery rates without circular logic, an external validation dataset was created from twenty expert-curated target planets that are generally agreed to reside in or near their respective habitable zones. The deduplicated target list is provided in Table \ref{tab:targets}.
 
@@ -136,23 +136,23 @@ To resolve collinearity, the pipeline applies Principal Component Analysis (PCA)
 \subsection{K-Means Clustering and the Silhouette Paradox}
 Many researchers mistakenly rely exclusively on the Silhouette Score. However, in astrophysical datasets characterized by continuous population distributions, the Silhouette Score will almost always decline monotonically from $k=2$. Instead, the pipeline relies on the Elbow Method (WCSS) and Domain Interpretability, converging on $k=5$. As shown in Fig. \ref{fig:elbow}, the elbow inflection occurs precisely at $k=5$, while the silhouette score remains reasonable before its monotonic decline.
 
-\begin{figure}[htbp]
-\centerline{\includegraphics[width=\columnwidth]{plot09_elbow_silhouette.png}}
-\caption{Elbow plot (left) showing WCSS inflection at $k=5$; silhouette score (right) confirming stable cluster quality.}
+\begin{figure*}[htbp]
+\centerline{\includegraphics[width=\textwidth]{plot09_elbow_silhouette.png}}
+\caption{K-Means optimal cluster selection. The visual knee in inertia and peak in silhouette score consistently indicate $k=5$.}
 \label{fig:elbow}
-\end{figure}
+\end{figure*}
 
-\begin{figure}[htbp]
-\centerline{\includegraphics[width=\linewidth]{plot10C_comparison.png}}
+\begin{figure*}[htbp]
+\centerline{\includegraphics[width=\textwidth]{plot10C_comparison.png}}
 \caption{Side-by-side visualization of K-Means and Agglomerative Hierarchical clustering executed on the exact same PCA-transformed structural feature space.}
 \label{fig:kmeans_vs_agg_pca}
-\end{figure}
+\end{figure*}
 
-\begin{figure}[htbp]
-\centerline{\includegraphics[width=\linewidth]{plot11C_cluster_sizes_comparison.png}}
+\begin{figure*}[htbp]
+\centerline{\includegraphics[width=\textwidth]{plot11C_cluster_sizes_comparison.png}}
 \caption{Comparison of cluster population sizes between K-Means and Agglomerative algorithms.}
 \label{fig:cluster_sizes_comparison}
-\end{figure}
+\end{figure*}
 
 \section{Results and Analysis}
 
