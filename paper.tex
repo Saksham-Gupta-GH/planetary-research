@@ -142,17 +142,7 @@ Many researchers mistakenly rely exclusively on the Silhouette Score. However, i
 \label{fig:elbow}
 \end{figure*}
 
-\begin{figure*}[htbp]
-\centerline{\includegraphics[width=\textwidth]{plot10C_comparison.png}}
-\caption{Side-by-side visualization of K-Means and Agglomerative Hierarchical clustering executed on the exact same PCA-transformed structural feature space.}
-\label{fig:kmeans_vs_agg_pca}
-\end{figure*}
 
-\begin{figure*}[htbp]
-\centerline{\includegraphics[width=\textwidth]{plot11C_cluster_sizes_comparison.png}}
-\caption{Comparison of cluster population sizes between K-Means and Agglomerative algorithms.}
-\label{fig:cluster_sizes_comparison}
-\end{figure*}
 
 \section{Results and Analysis}
 
@@ -178,12 +168,24 @@ Surface Temp (K)            & 288    & 5.58 \\
 
 The separation of these variables in the geometric mean explicitly prevents the double-counting of the thermal vector (which occurs when insolation and $T_{eq}$ are both scored independently) and ensures that density and structural composition exert appropriate mathematical influence over the final score \cite{luque2022}.
 
+\begin{figure*}[htbp]
+\centerline{\includegraphics[width=\textwidth]{plot10C_comparison.png}}
+\caption{Side-by-side visualization of K-Means and Agglomerative Hierarchical clustering executed on the exact same PCA-transformed structural feature space.}
+\label{fig:kmeans_vs_agg_pca}
+\end{figure*}
+
 \subsection{Validation Without Evaluation Leakage}
 The ultimate test of this pipeline is its ability to recover known, curated candidates for habitability without ever explicitly feeding the algorithm those targets or protecting them from statistical filtration. 
 
 Upon execution, the pipeline yielded a total of 40 highly viable habitable candidates. Of the 20 ground-truth validation targets, the pipeline independently recovered exactly 12 planets without any explicit target masking or data leakage. The 8 target planets that were rejected failed either the rigorous PCA-transformed clustering assignment (e.g., they grouped with sub-Neptunes) or fell strictly outside the deterministic Kopparapu habitable zone boundaries calculated for their specific host star's spectral class. Specifically, \textbf{Gliese 12 b}, \textbf{TOI-2095 c}, \textbf{K2-133 e}, \textbf{TOI-6002 b}, \textbf{TOI-1452 b}, and \textbf{TOI-712 d} failed to meet the strict bounds of the multi-dimensional terrestrial cluster in PCA space, whereas \textbf{Kepler-1052 c} and \textbf{TOI-4336 A b} possessed insolation fluxes exceeding the strict Kopparapu Runaway Greenhouse limits for their stellar class. This highlights the scientific rigor of removing target protection: instead of guaranteeing recovery by construction, the pipeline honestly flags candidates that do not mathematically fit the strict definition of a terrestrial habitable world.
 
 Furthermore, the post-imputation thermal rectification successfully resolved the Kepler-186 f anomaly. The pipeline correctly identified the $T_{eq} = 697.4$ K database value as a massive anomaly given the planet's $S = 0.30 S_\oplus$ insolation, and rectified the temperature to a physically consistent $205.7$ K, yielding a very high ESI score of 0.890 without manual intervention. The top candidates are presented in Table \ref{tab:top10}.
+
+\begin{figure*}[htbp]
+\centerline{\includegraphics[width=\textwidth]{plot11C_cluster_sizes_comparison.png}}
+\caption{Comparison of cluster population sizes between K-Means and Agglomerative algorithms.}
+\label{fig:cluster_sizes_comparison}
+\end{figure*}
 
 \begin{figure*}[htbp]
 \centerline{\includegraphics[width=\textwidth]{plot18_habitability_scores.png}}
@@ -247,6 +249,7 @@ The methodology presented in this report systematically resolves foundational da
 \section*{Declaration}
 \textbf{Data availability:} The current work was conducted using publicly available data collected from the NASA Exoplanet Archive. The complete dataset is taken from the confirmed planets as of January 16, 2026. 
 
+\clearpage
 \bibliographystyle{plain}
 \begin{thebibliography}{99}
 
