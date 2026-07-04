@@ -133,6 +133,13 @@ A universal Z-score filter is applied. Crucially, unlike flawed previous methodo
 To resolve collinearity, the pipeline applies Principal Component Analysis (PCA). PCA orthogonally transforms the correlated variables into a set of linearly uncorrelated principal components. Both the K-Means and the Agglomerative Hierarchical clustering algorithms are executed on this exact same PCA-transformed space, preventing dimension mismatch errors present in earlier studies.
 
 \section{Unsupervised Clustering Dynamics}
+
+\begin{figure*}[htbp]
+\centerline{\includegraphics[width=\textwidth]{plot10C_comparison.png}}
+\caption{Side-by-side visualization of K-Means and Agglomerative Hierarchical clustering executed on the exact same PCA-transformed structural feature space.}
+\label{fig:kmeans_vs_agg_pca}
+\end{figure*}
+
 \subsection{K-Means Clustering and the Silhouette Paradox}
 Many researchers mistakenly rely exclusively on the Silhouette Score. However, in astrophysical datasets characterized by continuous population distributions, the Silhouette Score will almost always decline monotonically from $k=2$. Instead, the pipeline relies on the Elbow Method (WCSS) and Domain Interpretability, converging on $k=5$. As shown in Fig. \ref{fig:elbow}, the elbow inflection occurs precisely at $k=5$, while the silhouette score remains reasonable before its monotonic decline.
 
@@ -145,6 +152,12 @@ Many researchers mistakenly rely exclusively on the Silhouette Score. However, i
 
 
 \section{Results and Analysis}
+
+\begin{figure*}[htbp]
+\centerline{\includegraphics[width=\textwidth]{plot11C_cluster_sizes_comparison.png}}
+\caption{Comparison of cluster population sizes between K-Means and Agglomerative algorithms.}
+\label{fig:cluster_sizes_comparison}
+\end{figure*}
 
 \subsection{Earth-Similarity Prioritization and Scoring}
 Every planet within the identified Terrestrial cluster is evaluated against the deterministic Kopparapu limits. For the planets that survive the structural clustering and the HZ filtering, the pipeline computes the continuous, real-valued Earth Similarity Index (ESI) based on the parameters established by Schulze-Makuch et al. (Table \ref{tab:scoring}). 
@@ -168,11 +181,7 @@ Surface Temp (K)            & 288    & 5.58 \\
 
 The separation of these variables in the geometric mean explicitly prevents the double-counting of the thermal vector (which occurs when insolation and $T_{eq}$ are both scored independently) and ensures that density and structural composition exert appropriate mathematical influence over the final score \cite{luque2022}.
 
-\begin{figure*}[htbp]
-\centerline{\includegraphics[width=\textwidth]{plot10C_comparison.png}}
-\caption{Side-by-side visualization of K-Means and Agglomerative Hierarchical clustering executed on the exact same PCA-transformed structural feature space.}
-\label{fig:kmeans_vs_agg_pca}
-\end{figure*}
+
 
 \subsection{Validation Without Evaluation Leakage}
 The ultimate test of this pipeline is its ability to recover known, curated candidates for habitability without ever explicitly feeding the algorithm those targets or protecting them from statistical filtration. 
@@ -181,11 +190,7 @@ Upon execution, the pipeline yielded a total of 40 highly viable habitable candi
 
 Furthermore, the post-imputation thermal rectification successfully resolved the Kepler-186 f anomaly. The pipeline correctly identified the $T_{eq} = 697.4$ K database value as a massive anomaly given the planet's $S = 0.30 S_\oplus$ insolation, and rectified the temperature to a physically consistent $205.7$ K, yielding a very high ESI score of 0.890 without manual intervention. The top candidates are presented in Table \ref{tab:top10}.
 
-\begin{figure*}[htbp]
-\centerline{\includegraphics[width=\textwidth]{plot11C_cluster_sizes_comparison.png}}
-\caption{Comparison of cluster population sizes between K-Means and Agglomerative algorithms.}
-\label{fig:cluster_sizes_comparison}
-\end{figure*}
+
 
 \begin{figure*}[htbp]
 \centerline{\includegraphics[width=\textwidth]{plot18_habitability_scores.png}}
@@ -249,7 +254,6 @@ The methodology presented in this report systematically resolves foundational da
 \section*{Declaration}
 \textbf{Data availability:} The current work was conducted using publicly available data collected from the NASA Exoplanet Archive. The complete dataset is taken from the confirmed planets as of January 16, 2026. 
 
-\clearpage
 \bibliographystyle{plain}
 \begin{thebibliography}{99}
 
