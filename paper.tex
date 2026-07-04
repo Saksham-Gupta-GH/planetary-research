@@ -45,7 +45,15 @@ machine learning, planetary science
 \end{IEEEkeywords}
 
 \section{Introduction}
-The search for potentially habitable environments beyond the Solar System requires the synthesis of massive, heterogeneous datasets. Current operational missions, including the Transiting Exoplanet Survey Satellite (TESS), alongside archival data from the Kepler and K2 missions, continue to yield thousands of planetary candidates and confirmed worlds. Because observational resources for atmospheric characterization via transmission spectroscopy or direct imaging are exceedingly scarce, the astrophysical community requires highly efficient algorithms to filter the broader exoplanet population down to the most promising Earth-analog candidates \cite{ExoSIMS}.
+The search for potentially habitable environments beyond the Solar System requires the synthesis of massive, heterogeneous datasets. Current operational missions, including the Transiting Exoplanet Survey Satellite (TESS), alongside archival data from the Kepler and K2 missions, continue to yield thousands of planetary candidates and confirmed worlds. 
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=\columnwidth]{plot08_discovery_year.png}}
+\caption{The exponential growth of exoplanet discoveries by year, highlighting the necessity for automated KDD pipelines.}
+\label{fig:discovery}
+\end{figure}
+
+Because observational resources for atmospheric characterization via transmission spectroscopy or direct imaging are exceedingly scarce, the astrophysical community requires highly efficient algorithms to filter the broader exoplanet population down to the most promising Earth-analog candidates \cite{ExoSIMS}.
 
 Traditionally, the primary metric for habitability has been the Circumstellar Habitable Zone (HZ)---a theoretical orbital shell surrounding a star wherein a terrestrial planet possesses the appropriate thermal conditions to maintain liquid water on its surface \cite{PostMainSequence}. However, the HZ is a fundamentally limited, one-dimensional spatial boundary. It does not account for the planet's bulk density, surface gravity, atmospheric retention capability, or broader structural composition. As the field matures, it has become evident that habitability is a multidimensional problem \cite{EffectiveStellarFlux, luque2022}.
 
@@ -151,11 +159,11 @@ To resolve collinearity, the pipeline applies Principal Component Analysis (PCA)
 
 \section{Unsupervised Clustering Dynamics}
 
-\begin{figure*}[htbp]
-\centerline{\includegraphics[width=\textwidth]{plot11C_cluster_sizes_comparison.png}}
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=\columnwidth]{plot11C_cluster_sizes_comparison.png}}
 \caption{Comparison of cluster population sizes between K-Means and Agglomerative algorithms.}
 \label{fig:cluster_sizes_comparison}
-\end{figure*}
+\end{figure}
 
 
 \subsection{K-Means Clustering and the Silhouette Paradox}
