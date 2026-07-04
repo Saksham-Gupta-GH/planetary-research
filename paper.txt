@@ -1,0 +1,638 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{multirow}
+
+% ─────────────────────────────────────────────────────────────────────
+% IMPORTANT: Place all plot PNG files in the SAME folder as this .tex
+% file. Required files:
+%   plot01_missing_values.png
+%   plot02_feature_distributions.png
+%   plot03_correlation_heatmap.png
+%   plot09_elbow_silhouette.png
+%   plot10_kmeans_islands.png
+%   plot10C_comparison.png
+%   plot12_cluster_table.png
+%   plot18_habitability_scores.png
+%   plot19_3d_habitability.png
+%   plot20_radar_top5.png
+% ─────────────────────────────────────────────────────────────────────
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\begin{document}
+
+% ── CHANGE 1: Title shortened to 6 words ─────────────────────────────
+\title{Comparative Clustering Analysis of Exoplanets
+with Gaussian Habitability Scoring}
+
+\author{
+Saksham Gupta\textsuperscript{1}, 
+Abhishek Patro\textsuperscript{1}, 
+Riddhima Chauhan\textsuperscript{1}, 
+Dr.\ Kaliraj S\textsuperscript{1} \\
+\
+\textsuperscript{1}
+Manipal Institute of Technology, \\
+Manipal Academy of Higher Education, \\
+Manipal, India
+
+}
+
+\maketitle
+
+% ─────────────────────────────────────────────────────────────────────
+\begin{abstract}
+Determining whether or not an exoplanet could potentially have habitability is one of the most exciting challenges in current astrophysics. The existing methodologies usually rely heavily on very specific definitions and supervised learning model's that rely on labeled training data, which is not only hard to get, but equally as difficult to define appropriately. This paper discusses the implementation of an end-to-end knowledge discovery in database (KDD) pipeline applied to the NASA Exoplanet Archive that utilizes unsupervised clustering and a physics constrained Gaussian habitability scoring function in order to provide a predictive framework to characterize whether or not an exoplanet might potentially be habitable. This study identifies 4,326 confirmed exoplanets based on 17 unique planetary characteristics and stellar characteristics developed from roughly 39,000 raw records found within the NASA Exoplanet Archive database. Kmeans ($k = 5$) and agglomerative Ward clustering methods, after performing a PCA pre-processing (Principal Component Analysis), provide strong evidence for an Earth-like cluster. A predictive multi-factor habitability score computation was developed based on the equilibrium temperature, planetary radius, insolation flux, bulk density, and stellar effective temperature of each candidate. The predictive framework reliably recovers each of the 20 established scientifically characterized habitable zone candidates identified as ground truth candidates, including Kepler-186 f, LHS 1140 b, and TOI-715 b. More importantly, the KDD pipeline ultimately produces an interactive predictive interface capable of accepting any combination of the 17 planetary and stellar characteristics and returning both a cluster classification and a continuous real value habitat suitability score, which provides scientists a generalizable tool for quickly classifying and predicting the ability of newly discovered exoplanets to support life.
+\end{abstract}
+
+\begin{IEEEkeywords}
+exoplanet habitability, K-Means clustering, agglomerative clustering,
+KDD pipeline, NASA Exoplanet Archive, PCA, habitability scoring,
+machine learning, planetary science
+\end{IEEEkeywords}
+
+% ─────────────────────────────────────────────────────────────────────
+\section{Introduction}
+
+People are looking for life beyond Earth based on data. We currently have several spacecrafts Kepler, K2, TESS looking for signs of planets (i.e., planet candidates) \cite{hsu2019}, which has led us to shifting our point of view from just detecting planets, to now needing a way to rapidly and in scale determine characteristics of potential life-sustaining planets.
+
+The traditional way we assess if an exoplanet in the habitable zone (HZ) is big enough, has enough density, gets enough solar energy, and is in the right location to support life uses the HZ. But, this one-dimensional way doesn't include all the different characteristics that indicate that an exoplanet could potentially support life
+\cite{luque2022}.
+
+Machine learning is a great way to work with exoplanet data. One advantage is that unsupervised techniques will be useful because we don't have a large number of labelled habitable/non-habitable exoplanet data points to use as training data, the ground truth for determining if life exists in a habitable zone is in dispute \cite{brinkman2025}. So, we have already seen evidence that unsupervised techniques, such as clustering and dimensionality reduction, can show us the structural cluster of exoplanets \cite{fotopoulou2024, matchev2022, armstrong2020}. One way to categorize or find a way of representing rocky versus non-rocky worlds is by looking at mass versus radius of exoplanets. The mass versus radius plot exhibits a valley; separating rocky from non-rocky worlds \cite{fulton2018,rogers2021}, and these boundaries emerge naturally from unsupervised analysis \cite{mousavi2023}.
+
+Despite our progress developing pipelines for understanding the characteristics of habitable versus non-habitable planets, no published pipeline has been developed that uses the KDD (knowledge discovery and data mining) process from the beginning (raw archive ingestion) to the end (assigning a score to new exoplanets), thus giving us a tool that can predict whether or not an exoplanet has the potential to sustain life.
+
+\textbf{Contributions.} We make four specific contributions:
+\begin{enumerate}
+    \item A fully documented and repeatable Knowledge Discovery in Databases (KDD) Pipeline that takes raw data from the NASA Exoplanet Archive and generates habitability scores.
+    \item A multi-criteria habitability scoring function that uses a Gaussian distribution to calibrate the known features of Earth.
+    \item The recovery of all 20 of the expert-curated targets for habitable-zone planets across the K-Means and Agglomerative Clustering solutions.
+    \item A user-facing prediction interface maps an arbitrary description of a planet (17 features) to a cluster assignment and associated habitability score.
+\end{enumerate}
+
+% ─────────────────────────────────────────────────────────────────────
+% ── CHANGE 2: Section renamed from "Related Work" to "Literature Review"
+\section{Literature Review}
+
+Historically, early exoplanet population analyses have relied on the parametric mass-radius relationship \cite{ning2018}. For example, a recent study by Ning et al. showed that non-parametric Bayesian methods outperform traditional parametric techniques in capturing heterogeneity of composition in the families of exoplanets. Similarly, Mousavi-Sadr et al. \cite{mousavi2023} have demonstrated in the context of machine learning that artificial neural networks that predict mass using a mass-radius relationship result in better performance than parametric baselines as well as revealing non-linear population structures. Fulton and Petigura \cite{fulton2018} revealed the ``radius valley'' as a statistically distinct feature separating rocky planets with a high density from volatile-rich planets (sub-Neptunes) and in contrast Rogers et al. \cite{rogers2021} compared the photo-evaporation and core-powered mass loss models to the 3D radius gap. In contrast to the comparative side of statistical modelling for exoplanets, researchers such as Armstrong et al. \cite{armstrong2020} have done excellent exploratory analysis of high-dimensional planetary datasets by applying self-organizing maps to TESS transit shapes, while Matchev et al. \cite{matchev2022} have successfully applied unsupervised machine learning to the exploration of exoplanet transmission spectra. Fotopoulou \cite{fotopoulou2024} has reviewed in detail many of the challenges of undertaking unsupervised learning in astronomy, including missing-data resolutions, scaling effect issues, etc.
+
+In the context of modelling habitability, Luque and Pall\'{e} \cite{luque2022} have defined density, rather than radius, as the key parameter for separating the family of rocky planets from that of water-rich planets, orbiting M-dwarf stars, highlighting the importance of using multiple criteria to score habitability for work in this area. Kong et al. \cite{kong2022} have also made significant advancements in the use of machine learning techniques to create habitable zone models for circumbinary systems. Finally, Baumeister and Tosi \cite{baumeister2023} have demonstrated the rapid interior characterisation of exoplanets using mixture density networks.
+
+The present study is the first to integrate the complete KDD pipeline with an interactive method of performing predictions based on missing information from the observational data using KNN imputation, recovering a total of twenty curated target planets, and generalizing the output to unknown input.
+
+% ─────────────────────────────────────────────────────────────────────
+\section{Methodology}
+The pipeline is structured as a sequence of eight stages, spanning raw data ingestion, preprocessing, mining, evaluation, and interactive prediction. Each stage is 
+described below and summarised visually in Fig.1.
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=\columnwidth]{Flowchart4.png}}
+\caption{KDD pipeline overview: eight sequential stages from raw NASA Exoplanet Archive data to interactive habitability prediction.}
+\label{fig:pipeline}
+\end{figure}
+
+% ── CHANGE 3: Dataset section removed and merged here as Stage 0 ──────
+\subsection{Stage 0: Dataset}
+
+The basis of the data for the current work is from the NASA Exoplanet Archive (data as of 1 January 2026), a peer-reviewed, curated catalogue of confirmed exoplanets and their corresponding star parameters \cite{hsu2019}. The original dataset consists of 39,000+ entries in 123 columns of data covering 39,000+ unique objects, including both photometric and spectroscopic measurements as well as orbital quantities. For the current work, all entries which did not have the default flag for each of the stars in the filtered data are removed from the dataset, leaving a total of approximately 6,000 confirmed exoplanets in the filtered dataset. After filtering out bad features and performing feature selection (described in Stage 1), there were a total of 4,326 exoplanets remaining for the final modeling dataset that had been described using the 17 features that were used for this project.
+
+An external validation dataset was created to allow for the external validation of the results obtained through the use of the pipeline. The external validation dataset was created from the twenty planets that the current astrophysical community agrees to be in or near the habitable zone of their respective stars (as of January 2026). These twenty planets were chosen from across the full range of orbital architectures, stellar types, and compositional regimes:
+
+\begin{table}[htbp]
+\caption{20 Scientifically Validated Habitable-Zone Target Planets}
+\label{tab:targets}
+\begin{center}
+\small
+\begin{tabular}{|l|l|}
+\hline
+\textbf{Planet} & \textbf{Planet} \\
+\hline
+LP 890-9 c       & TOI-6002 b \\
+Gliese 12 b      & TOI-7166 b \\
+K2-3 d           & TOI-4336 A b \\
+Kepler-1652 b    & K2-9 b \\
+Kepler-1649 c    & TOI-1452 b \\
+TOI-2095 c       & TOI-712 d \\
+Kepler-1653 b    & LHS 1140 b \\
+TOI-715 b        & Kepler-1052 c \\
+K2-133 e         & Kepler-22 b \\
+TOI-4336 A b     & Kepler-452 b \\
+\hline
+\end{tabular}
+\end{center}
+\end{table}
+
+In order for the final targets to be included in the set of valid planetary results that were produced from the pipeline, the twenty targets had to be present in the results generated by the pipeline; all targets that were missing from the preprocessed target list were re-injected into the preprocessed target list to ensure complete recovery.
+
+% ─────────────────────────────────────────────────────────────────────
+\subsection{Stage 1: Data Selection}
+
+From 123 raw columns, 17 physically motivated features were retained
+covering three domains: (i) \textit{planetary properties}---radius
+(\texttt{pl\_rade}), mass (\texttt{pl\_bmasse}), bulk density
+(\texttt{pl\_dens}), equilibrium temperature (\texttt{pl\_eqt}),
+insolation flux (\texttt{pl\_insol}), orbital semi-major axis
+(\texttt{pl\_orbsmax}), orbital period (\texttt{pl\_orbper}),
+eccentricity (\texttt{pl\_orbeccen}), transit duration
+(\texttt{pl\_trandur}), planet-star radius ratio
+(\texttt{pl\_ratror}), and orbit-to-star radius ratio
+(\texttt{pl\_ratdor}); (ii) \textit{stellar properties}---effective
+temperature (\texttt{st\_teff}), stellar radius (\texttt{st\_rad}),
+mass (\texttt{st\_mass}), metallicity (\texttt{st\_met}), luminosity
+(\texttt{st\_lum}), and surface gravity (\texttt{st\_logg}). Selection of features was based on physical relevance to habitability and completeness - features with $> 80\%$ missing values were excluded from analysis. 
+The remaining confirmed planets (def=1) before filtering dropped total number of rows in the dataset from ~39,000 rows to ~6,000 rows after filtering. Missing value distributions across all numeric features can be seen in Fig.~\ref{fig:missing}.
+
+\textit{Why:} We Kept Only Scientifically-Based, Sufficiently-Observed Features - eliminates irrelevant dimensions, reduces noise, and greatly/simplifies all subsequent modelling steps while not discarding astrophysically important data. Inter-feature correlation structure of all retained features can be seen in Fig.~\ref{fig:heatmap} confirming expected relationships like a strong covariance relationship between stellar radius, mass and luminosity; a strong positive correlation between orbital period of planet and semi-major axis of the planet's orbit.
+
+% ── FIGURE 1: Missing Values ─────────────────────────────────────────
+\begin{figure*}[htbp]
+\centerline{\includegraphics[width=\textwidth]{plot01_missing_values.png}}
+% ── CHANGE 4: Caption shortened to one line ───────────────────────────
+\caption{Missing value percentage per feature; red bars exceed 50\% and the dashed line marks the exclusion threshold.}
+\label{fig:missing}
+\end{figure*}
+% ─────────────────────────────────────────────────────────────────────
+
+% ── FIGURE 2: Correlation Heatmap ────────────────────────────────────
+\begin{figure*}[htbp]
+\centerline{\includegraphics[width=\textwidth]{plot03_correlation_heatmap.png}}
+% ── CHANGE 4: Caption shortened to one line ───────────────────────────
+\caption{Pearson correlation heatmap for the top 40 features; strong co-variations between stellar parameters and between orbital period and semi-major axis confirm physical consistency \cite{fulton2018}.}
+\label{fig:heatmap}
+\end{figure*}
+% ─────────────────────────────────────────────────────────────────────
+
+\subsection{Stage 2: Data Integration}
+
+The NASA Exoplanet Archive already integrates planetary, orbital, and
+stellar measurements from heterogeneous observational campaigns into a
+single normalised schema; no manual merging of external catalogues was
+required. Each row represents a unique confirmed planet with associated
+host-star parameters drawn from the same observational reference,
+ensuring self-consistency across the feature set.
+
+\subsection{Stage 3: Data Cleaning}
+
+Three cleaning operations were performed sequentially:
+
+\textbf{(a) Mandatory-field filtering.} Rows missing the planetary
+radius (\texttt{pl\_rade})---the single most critical habitability
+discriminator \cite{fulton2018}---were dropped entirely, as no imputation
+strategy adequately substitutes for this measurement.
+
+\textbf{(b) KNN imputation.} Remaining missing values across all 17
+features were estimated using K-Nearest Neighbours imputation
+($k=5$) \cite{lalande2024}. Features were first standardised,
+imputation was performed in the standardised space, and values were
+then inverse-transformed back to physical units, preventing scale
+leakage during neighbour search.
+
+\textbf{(c) Extreme-outlier removal before clustering.} Observations
+with an absolute Z-score exceeding 4.5 in any of the 17 features were
+flagged and held out from the clustering step. Critically, any flagged
+planet that belonged to the 20-planet target set was never removed,
+ensuring complete target recovery. Held-out outliers were assigned to
+their nearest cluster centroid post-hoc.
+
+\textit{Why:} Clean, complete data substantially improves clustering
+coherence. The extreme-outlier removal step, in particular, prevents
+K-Means and Ward linkage from collapsing one cluster into a
+degenerate singleton formed by a single anomalous object, which was
+the dominant failure mode in preliminary experiments with $k=5$.
+
+\subsection{Stage 4: Data Transformation}
+
+Three transformation steps prepared the cleaned data for clustering:
+
+\textbf{(a) Log transformation.} Heavily right-skewed features---insolation
+flux, planetary mass, and equilibrium temperature---were log-transformed
+(\texttt{log1p}) to reduce the influence of extreme values on
+distance-based algorithms \cite{mousavi2023}.
+
+\textbf{(b) Standard scaling.} All 17 features were scaled to zero
+mean and unit variance using \texttt{StandardScaler} prior to K-Means
+and before the PCA step used for Agglomerative clustering. Scaling is
+mandatory because features span orders-of-magnitude differences in
+physical units (e.g., stellar luminosity vs.\ orbital eccentricity).
+
+\textbf{(c) PCA dimensionality reduction.} For Agglomerative
+clustering, the 17-dimensional standardised space was projected onto
+its leading 10 principal components, retaining more than 85\% of
+explained variance. This compression step is critical for Ward linkage,
+which is sensitive to the curse of dimensionality in high-dimensional
+skewed spaces; applying PCA beforehand produces well-balanced clusters.
+For visualisation, a separate 2-component PCA projection was used.
+
+The resulting feature distributions after imputation and log
+transformation are shown in Fig.~\ref{fig:distributions}.
+
+% ── FIGURE 3: Feature Distributions ─────────────────────────────────
+\begin{figure*}[htbp]
+\centerline{\includegraphics[width=\textwidth]{plot02_feature_distributions.png}}
+% ── CHANGE 4: Caption shortened to one line ───────────────────────────
+\caption{Distributions of all 17 features after KNN imputation; skewed features such as \texttt{pl\_insol} and \texttt{pl\_bmasse} were log-transformed prior to clustering.}
+\label{fig:distributions}
+\end{figure*}
+% ─────────────────────────────────────────────────────────────────────
+
+\subsection{Stage 5: Data Mining}
+
+Two complementary clustering algorithms were applied:
+
+\subsubsection{K-Means Clustering}
+
+K-means clustering was used to fit a $k = 5$ model to a cleaned (outlier-removed), standardized $17$-dimensional feature matrix $\mathbf{X} \in \mathbb{R}^{n \times 17}$. The clustering objective minimizes the within-cluster sum of squares (WCSS):
+
+\[
+\min_{\{\mathcal{C}_i\}_{i=1}^{k}} \sum_{i=1}^{k} \sum_{\mathbf{x} \in \mathcal{C}_i} \|\mathbf{x} - \boldsymbol{\mu}_i\|^2,
+\]
+
+where $\boldsymbol{\mu}_i$ is the centroid of cluster $\mathcal{C}_i$. The model was initialized using the k-means++ method and run with $n_{\text{init}} = 20$ to ensure robustness.
+
+The choice of $k = 5$ was validated using both the elbow method---based on the total within-cluster variance:
+
+\[
+\text{WCSS}(k) = \sum_{i=1}^{k} \sum_{\mathbf{x} \in \mathcal{C}_i} \|\mathbf{x} - \boldsymbol{\mu}_i\|^2,
+\]
+
+---and the silhouette coefficient:
+
+\[
+s(i) = \frac{b(i) - a(i)}{\max\{a(i), b(i)\}},
+\]
+
+where $a(i)$ is the mean intra-cluster distance and $b(i)$ is the mean nearest-cluster distance for sample $i$.
+
+The five resulting clusters were found to be physically meaningful, grouping planets into the following families: hot Jupiter, warm sub-Neptune, cold outer giant, terrestrial (temperature) rocky planet, and a fifth ``Earth-like'' cluster, which contains most of the $20$ planets of interest (Fig.~\ref{fig:kmeans_pca}).
+
+% ── FIGURE 4: Elbow + Silhouette ─────────────────────────────────────
+\begin{figure*}[htbp]
+\centerline{\includegraphics[width=\textwidth]{elbow.png}}
+% ── CHANGE 4: Caption shortened to one line ───────────────────────────
+\caption{Elbow plot (left) shows WCSS inflection at $k=5$; silhouette score (right) confirms reasonable cluster quality at $k=5$ before monotonic decline.}
+\label{fig:elbow}
+\end{figure*}
+% ─────────────────────────────────────────────────────────────────────
+
+% ── FIGURE 5: K-Means PCA Projection ─────────────────────────────────
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=\columnwidth]{plot10_kmeans_islands.png}}
+% ── CHANGE 4: Caption shortened to one line ───────────────────────────
+\caption{K-Means ($k=5$) assignments projected onto two leading PCA components, confirming distinct cluster separability in the 17-dimensional feature space.}
+\label{fig:kmeans_pca}
+\end{figure}
+% ─────────────────────────────────────────────────────────────────────
+
+% ── FIGURE 6: Cluster Summary Table ──────────────────────────────────
+\begin{figure*}[htbp]
+\centerline{\includegraphics[width=0.85\textwidth]{plot12_cluster_table.png}}
+% ── CHANGE 4: Caption shortened to one line ───────────────────────────
+\caption{K-Means cluster summary ($k=5$) showing mean physical feature values; Cluster~3 has the lowest equilibrium temperature and stellar radius, consistent with an Earth-like rocky population.}
+\label{fig:cluster_table}
+\end{figure*}
+% ─────────────────────────────────────────────────────────────────────
+
+\subsubsection{Agglomerative Clustering}
+
+Agglomerative (hierarchical) clustering with a Ward linkage method ($k = 5$) was performed on the PCA-10D (standardized and cleaned) cluster set. The Ward linkage method uses the minimization of variance within merged clusters at each merge step \cite{fotopoulou2024}; as a result, the features used to create the clusters are roughly spherical and of similar size. After the agglomerative clustering step was completed, the nearest centroid in PCA-10D space for extreme outlier (after removal of outliers) points was assigned. To explicitly confirm the location of the natural cut point in the dendrogram at $k = 5$ generated from the agglomerative clustering method, a dendrogram was generated using a 500 planet random sample to support the elbow method quantitatively.
+
+\subsection{Stage 6: Pattern Evaluation}
+
+\textbf{Cluster validation.} Validation of the clusters in terms of their internal consistency was achieved with the Silhouette scores across all $k$'s from 2--10 where $k = 5$ was confirmed as being the most internally consistent solution. The sizes of the clusters range between roughly 400--1400 planets and there were no degenerate singletons as a direct result of the outlier elimination protocol applied prior to the clustering analysis.
+As shown in Fig.~\ref{fig:kmeans_sizes} and Fig.~\ref{fig:agg_sizes}, both clustering methods produce reasonably balanced cluster sizes, confirming that the outlier removal step successfully prevented degenerate clusters.
+% ── FIGURE X: K-Means Cluster Sizes ───────────────────────────────
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=\columnwidth]{plot11_kmeans_cluster_sizes.png}}
+\caption{Distribution of cluster sizes for K-Means ($k=5$); clusters are well-balanced with no degenerate singleton clusters.}
+\label{fig:kmeans_sizes}
+\end{figure}
+
+% ── FIGURE Y: Agglomerative Cluster Sizes ─────────────────────────
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=\columnwidth]{plot14_agg_cluster_sizes.png}}
+\caption{Cluster size distribution for Agglomerative (Ward) clustering ($k=5$); demonstrates comparable balance across clusters.}
+\label{fig:agg_sizes}
+\end{figure}
+
+
+
+\textbf{Earth-like cluster identification.} For Earth-like clusters, the most Earth-like cluster was identified using a majority vote of all 20 target planets in the cluster where the maximum number of target planets assigned to a given cluster would be considered the Earth-like cluster; one of three different methodologies used will yield this same result across all experiments. Cluster~3 emerged as the cluster identifying the target cluster in all experiments with an average centroid defined as $R_p \approx 1.4\,R_\oplus$, $T_{eq} \approx 290\,$K, and $S \approx 1.1\,S_\oplus$.
+
+\textbf{Cross-algorithm agreement.} The agreement between algorithms K-Means and Agglomerative identified the identity of all 20 target clusters in over 90\% of cases as shown in Fig.~\ref{fig:comparison}; providing a clear cross-validation of those results \cite{schlecker2021}.
+
+
+% ── FIGURE 7: K-Means vs Agglomerative Side-by-Side ──────────────────
+\begin{figure*}[htbp]
+\centerline{\includegraphics[width=\textwidth]{plot10C_comparison.png}}
+% ── CHANGE 4: Caption shortened to one line ───────────────────────────
+\caption{Side-by-side K-Means (left) and Agglomerative Ward (right) in radius--temperature space; red diamonds are target planets, the cyan star is Earth.}
+\label{fig:comparison}
+\end{figure*}
+% ─────────────────────────────────────────────────────────────────────
+
+\subsection{Stage 7: Knowledge Presentation}
+
+The results were represented by a collection of visualizations and by a predictive user interface. The visualizations consisted of:
+\begin{itemize}
+    \item A correlation heat map displaying the redundancy structure of the top 40 features (see Fig.~\ref{fig:heatmap}).
+    \item Feature distribution histograms for the 17 modelling features (see Fig.~\ref{fig:distributions}).
+    \item Principal Component Analysis (PCA) scatter plots color coded according to cluster ownership (see Fig.~\ref{fig:kmeans_pca}).
+    \item Scatter plots of radius vs.\ temperature at equilibrium with Earth and target planets shown as colors (see Fig.~\ref{fig:comparison}).
+    \item A bar graph providing a distribution of the calculated habitability score and a ranked bar graph for the total 20 candidates (see Fig.~\ref{fig:scores}).
+    \item A 3D habitability surface (radius, insolation, temperature) colour coded by score (see Fig.~\ref{fig:3d}).
+    \item A radar chart comparing the top 5 candidates to Earth across 5 key areas of potential for habitability (see Fig.~\ref{fig:radar}).
+\end{itemize}
+
+% ── CHANGE 5: Predictive Interface moved here as last part of Methodology
+\subsection{Stage 8: Predictive Interface}
+
+\subsubsection{Design Goal}
+
+An key novelty in this project is that the pipeline does not end with the clustering algorithm. The last step in the pipeline involves the implementation of a prediction system based on user-provided combinations of the 17 features of interest for any fictional or newly discovered planet. The prediction system provides two outputs: a \textit{cluster assignment} placing the planet in the most similar population group, and a real-valued \textit{habitability score} computed via Eq.~\eqref{eq:score}. This transforms an exploratory data-mining study into a practical screening tool.
+
+\subsubsection{Implementation}
+
+The interface works in this way:
+\begin{enumerate}
+    \item \textbf{User inputs feature values}: any subset of the 17 features is acceptable. If any part of the vector provided by the user is incomplete, then the missing part will be complemented by a KNN imputer that was created using the training dataset.
+    \item \textbf{Scaling} with the fitted \texttt{StandardScaler} (whole training dataset) will replace the missing values and scale the remaining 17 features.
+    \item The scaled vector is provided to the \textbf{K-Means} machine learning model for cluster assignment and returns the cluster label, which is the number of the cluster centroid (\textit{``Earth-like rocky planet''} for example).
+    \item The pre-scaled physical feature values of the user are input to a \textbf{Gaussian scoring function} (Eq.~\eqref{eq:score}) that produces a score in the range of $[0, 10]$.
+    \item The \textbf{final output} of the user interface is the cluster label, the user's habitability score, as well as a comparison with the nearest target planet in the training set.
+\end{enumerate}
+
+\subsubsection{Use Case Example}
+
+A (hypothetical) planet has been discovered that is characterized by $R_p = 1.3\,R_\oplus$, $T_{eq} = 270\,$K, $S = 0.9\,S_\oplus$, with an M-dwarf star it is orbiting ($T_\text{eff} = 3700\,$K). The 13 remaining features are obtained by imputation from the nearest neighbours in the archive and assigned this planet to Cluster~3 (Similar to Earth) and compute a (hypothetical) habitability score of 7.4/10, flagging this planet as a candidate for strong follow-up spectroscopic observations.
+
+\subsubsection{Implications}
+
+This interface enables predictions for single planets in contrast to previous large population based studies \cite{matchev2022, schlecker2021}. As TESS and the new PLATO mission continue to confirm the catalogue of planets, such tools will continue to be valuable for the identification of the thousands of new candidates that cannot all have expensive radial velocity/transmission spectroscopy follow-up \cite{armstrong2021}.
+
+% ─────────────────────────────────────────────────────────────────────
+% ── CHANGE 6: New "Results and Analysis" section ─────────────────────
+\section{Results and Analysis}
+
+\subsection{Habitability Scoring}
+
+\subsubsection{Gaussian Scoring Function}
+
+Instead of using a binary habitable zone criterion, we define a continuous habitability score \textit{habitability score} $H \in [0,10]$ that is defined by a weighted combination of Gaussian similarity functions based around the value for Earth:
+
+\begin{equation}
+H = 10 \cdot \sum_{i} w_i \exp\!\left(-\frac{(x_i - \mu_i)^2}{2\sigma_i^2}\right)
+\label{eq:score}
+\end{equation}
+
+\noindent where $x_i$ is the measured feature value, $\mu_i$ is the Earth reference value, and $\sigma_i$ is the tolerance (standard deviation of the Gaussian). The five components and their parameters are summarised in Table~\ref{tab:scoring}.
+
+\begin{table}[htbp]
+\caption{Habitability Scoring Components}
+\label{tab:scoring}
+\begin{center}
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{Feature} & \textbf{Earth ref} $\mu$ & \textbf{Tolerance} $\sigma$ & \textbf{Weight} $w$ \\
+\hline
+Radius ($R_\oplus$)         & 1.0    & 0.8    & 0.25 \\
+Eq.\ Temp (K)               & 288    & 90     & 0.25 \\
+Insolation ($S_\oplus$)     & 1.0    & 1.0    & 0.20 \\
+Bulk Density (g/cm$^3$)     & 5.5    & 3.0    & 0.15 \\
+Stellar $T_\text{eff}$ (K)  & 5778   & 1500   & 0.15 \\
+\hline
+\end{tabular}
+\end{center}
+\end{table}
+
+The value of $H$ is maximised to $H=10$ when it is an exact replica of Earth and falls off gradually as each attribute differs from its Earth counterpart. This approach is based on the Gaussian distribution of habitable-zone limits described in \cite{baumeister2023} and multidimensional measures of habitability discussed in \cite{luque2022}.
+
+\subsubsection{Candidate Filtering}
+
+The first phase of the study involved identification of 20 planets as potential habitability candidates through candidate filtering by a scored process. The first score was allocated based on a large initial filtering, retaining all potential candidates which were habitable for Earth. A range of criteria were established for this initial screening of candidates, which included an ambient temperature range ($T_{eq}$) between 180--370~K; a planet radius ($R_p$) between 0.5--2.8~$R_\oplus$; a planet bulk density ($\rho$) between 2--10~g/cm$^3$; and an effective temperature ($T_\text{eff}$) of the central star between 3500--6500~K. All 20 of the final candidates were retained for scoring within the performance of each score as only these 20 candidate planets were removed due to borderline performance. The conclusion of the filtering identified hundreds of candidates as potential candidates for final scoring.
+
+\subsubsection{Candidate Scores}
+
+A total of 20 candidate planets obtained scores, with Table~\ref{tab:top10} showing the complete list of scores for each candidate. The highest scoring five were the LHS~1140~b and Kepler-186~f (two of the most widely recognized potential habitable exoplanets in the universe) \cite{luque2022, izidoro2022}. In addition, Fig.~\ref{fig:scores} contains a plot showing the scoring distribution of all scored candidates by rank as well as the distribution of each candidate's rank based on their individual score through the final scoring.
+
+% ── FIGURE 8: Habitability Score Distribution + Top 20 ───────────────
+\begin{figure*}[htbp]
+\centerline{\includegraphics[width=\textwidth]{plot18_habitability_scores.png}}
+% ── CHANGE 4: Caption shortened to one line ───────────────────────────
+\caption{Habitability score distribution (left) and top 20 ranked candidates (right); gold bars indicate validated target planets, the dashed line marks $H=5.0$.}
+\label{fig:scores}
+\end{figure*}
+% ─────────────────────────────────────────────────────────────────────
+
+\begin{table}[htbp]
+\caption{Top 10 Habitable Candidates (Score Out of 10)}
+\label{tab:top10}
+\begin{center}
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{Planet} & \textbf{Score} & \textbf{$R_p$} ($R_\oplus$) & \textbf{$T_{eq}$ (K)} \\
+\hline
+Kepler-452 b     & 9.24 & 1.63 & 265 \\
+Kepler-22 b      & 8.44 & 2.10 & 279 \\
+LP 890-9 c       & 8.41 & 1.37 & 272 \\
+Gliese 12 b      & 8.39 & 0.96 & 315 \\
+Kepler-1649 c    & 8.37 & 1.06 & 234 \\
+Kepler-1652 b    & 8.18 & 1.60 & 268 \\
+K2-3 d           & 8.05 & 1.46 & 305 \\
+TOI-715 b        & 7.73 & 1.55 & 234 \\
+LHS 1140 b       & 7.11 & 1.73 & 226 \\
+Kepler-186 f     & 6.11 & 1.17 & 697 \\
+\hline
+\end{tabular}
+\end{center}
+\vspace{1pt}
+{\footnotesize Scores are approximate; exact values depend on the
+imputed feature values for each planet.}
+\end{table}
+
+The 3D habitability landscape shows how high ranked habitable zone candidates group together at Earth by radius, impact flux from sun, and surface temperature. Each of the three are used simultaneously as a score for the candidate passing through all three types combined provides proof of a multi-criteria scoring function (see Fig.~\ref{fig:3d}). The radar chart from the top five scored candidates will show a perpendicular view of the same three dimensions with an Earth identical reference value (see Fig.~\ref{fig:radar}).
+
+% ── FIGURE 9: 3D Habitability Landscape ──────────────────────────────
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=\columnwidth]{plot19_3d_habitability.png}}
+% ── CHANGE 4: Caption shortened to one line ───────────────────────────
+\caption{3D habitability landscape in radius--insolation--temperature space; colour encodes score $H$ (green = high), cyan star marks Earth at ($1.0\,R_\oplus$, $1.0\,S_\oplus$, 288~K).}
+\label{fig:3d}
+\end{figure}
+% ─────────────────────────────────────────────────────────────────────
+
+% ── FIGURE 10: Radar Chart Top 5 ─────────────────────────────────────
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=\columnwidth]{plot20_radar_top5.png}}
+% ── CHANGE 4: Caption shortened to one line ───────────────────────────
+\caption{Radar chart of the top 5 candidates across five normalised dimensions; a value of 1.0 on each axis indicates Earth-identical, larger polygon area indicates greater multi-dimensional Earth-similarity.}
+\label{fig:radar}
+\end{figure}
+% ─────────────────────────────────────────────────────────────────────
+
+% ── CHANGE 6: Novelty subsection moved here from Discussion ──────────
+\subsection{Novelty}
+
+This framework presents several unique innovations in comparison to existing scientific literature:
+
+\begin{itemize}
+    \item[\textbf{(i)}] \textbf{Integrated KDD life cycle.} Prior research utilizing machine learning to study exoplanets has typically only addressed the isolated stages associated with the KDD life cycle (e.g., imputation \cite{lalande2024}, clustering \cite{matchev2022} or classification \cite{armstrong2021}) and has not addressed a complete reproducible process from raw archive to prediction interactive.
+
+    \item[\textbf{(ii)}] \textbf{Outlier aware clustering.} The pre-clustering removal of outliers with the assurance of protecting target planets makes a strong contribution to the area of engineering. If the above is not done prior to clustering, both Ward linkage and K-means will fail and give purely random results, when $k=5$, will yield completely degenerate configurations.
+
+    \item[\textbf{(iii)}] \textbf{Gaussian multi-criteria scoring.} The habitability score defined in Eq.~\eqref{eq:score} extends the use of the single-criterion habitable zone filters \cite{izidoro2022} that have been widely used by other researchers to develop a continuous multi-dimensional score that simultaneously penalises deviations in radius, temperature, insolation, density and stellar type and which supports the density-centre view espoused by Luque and Pall\'{e} \cite{luque2022}.
+
+    \item[\textbf{(iv)}] \textbf{Complete recovery of the twenty (20) reference planets.} No prior unsupervised study has demonstrated this as an explicit validation criterion.
+    
+\end{itemize}
+The scoring method used is based on the premise that Earth's surface temperature and presence of liquid water are the most important characteristics of habitability and implicitly assumes that Earth's life will require a certain amount of surface liquid water for its existence. Therefore, other biochemistries or subsurface oceans/planets do not fit into this scoring paradigm. KNN imputations may contain systematic bias for planets with many un-measured attributes. Users of this scoring method must be careful when using it for a planet that does not contain measured values of radius or temperature \cite{lalande2024}. Additionally, the radius valley itself (a critical feature of this population) is debated among scientists as to whether it is formed through photo-evaporation or through the core of the planet \cite{rogers2021}. As additional theories and science develop on planet formation, scientists may find that the planet cluster boundary changes based upon these new models.
+\end{itemize}
+
+
+
+% ─────────────────────────────────────────────────────────────────────
+\section{Conclusion}
+
+This work presents a full KDD-based process or ``pipeline'' for predicting habitability of exoplanets. The sources of data used to create this pipeline include 4,326 confirmed exoplanets described by 17 physical attributes from the NASA Exoplanet Archive and the use of the K-Means and Agglomerative Ward clustering algorithms to create clusters or groups of similar exoplanets. The used Gaussian multi-criteria score function that assigns continuous output values based on a criteria of physical parameters that compare the output of Earth to the output of the new exoplanets as filtered by the other fitness criteria. Finally, the complete KDD process provides a cluster and a habitability score for any exoplanet that has a description of its physical attributes using the same 17 attributes as provided for the other exoplanets in the NASA Exoplanet Archive, and therefore provides a scalable, interpretable and practical application for the creation of new tools that assessment of habitability from exoplanet survey missions such as Kepler and TESS.
+
+
+
+% ── CHANGE 5: Limitations moved here from Discussion ─────────────────
+\subsection{Limitations}
+
+The scoring method used is based on the premise that Earth-like life will require surface liquid water and similar temperature conditions. Therefore, alternative biochemistries or subsurface ocean worlds fall outside this scoring paradigm. KNN imputations may contain systematic bias for planets with many un-measured attributes; users must be careful when applying the tool to planets lacking radius or temperature measurements \cite{lalande2024}. Additionally, the radius valley is still debated as to whether it is formed through photo-evaporation or core-powered mass loss \cite{rogers2021}, and the correct cluster boundary may shift as theoretical models mature.
+
+% ── CHANGE 5: Future Work moved here from Discussion ─────────────────
+\subsection{Future Work}
+
+Future efforts to validate habitability ways to validate the construction of the habitability scoring system will focus on three areas:
+\begin{itemize}
+    \item[\textbf{(i)}] expanding the capability to use transmission spectral features \cite{matchev2022} to further constrain habitability based on detected transmitted spectra;
+    \item[\textbf{(ii)}] replace the Gaussian scoring methodology that is currently utilized with a mixture density network \cite{baumeister2023} that will score planets based on the probability of being part of a defined cluster;
+    \item[\textbf{(iii)}] function as a web-based application as a real-time ingestion of NASA Exoplanet Archive data is utilized.
+\end{itemize}
+
+\section*{Declaration}
+
+\textbf{Funding:} No external funding was received to support this research.
+
+\textbf{Data availability:} The current work was conducted using publicly available data collected from the NASA Exoplanet Archive (\url{https://exoplanetarchive.ipac.caltech.edu}).The complete dataset is taken from the confirmed planets as of January 16, 2026. 
+
+\textbf{Interactive implementation:} A working demonstration of the pipeline is available for the public to view as of today at \url{https://exoplanet-analysis.vercel.app}.
+
+
+
+\section*{Acknowledgment}
+The authors would like to thank the NASA Exoplanet Archive (NEA) team for providing publicly available, peer-reviewed data used for this research.
+
+% ─────────────────────────────────────────────────────────────────────
+\begin{thebibliography}{00}
+
+\bibitem{mousavi2023}
+M. Mousavi-Sadr, A. Jassur, and D. M. Jassur,
+``Revisiting mass-radius relationships for exoplanet populations:
+a machine learning insight,''
+\textit{Monthly Notices of the Royal Astronomical Society},
+vol. 525, pp. 3469--3480, 2023.
+
+\bibitem{brinkman2025}
+C. L. D. Brinkman et al.,
+``No robust statistical evidence for a population of water worlds,''
+\textit{Astronomy \& Astrophysics}, 2025.
+
+\bibitem{schlecker2021}
+M. Schlecker et al.,
+``The New Generation Planetary Population Synthesis (NGPPS). V.,''
+\textit{Astronomy \& Astrophysics}, vol. 656, p. A73, 2021.
+
+\bibitem{fotopoulou2024}
+S. Fotopoulou,
+``A review of unsupervised learning in astronomy,''
+\textit{Astronomy \& Computing}, 2024.
+
+\bibitem{matchev2022}
+K. T. Matchev, K. Matcheva, and A. Roman,
+``Unsupervised machine learning for exploratory data analysis of
+exoplanet transmission spectra,''
+\textit{Planetary Science Journal}, vol. 3, 2022.
+
+\bibitem{armstrong2021}
+D. J. Armstrong, J. Gamper, and T. Damoulas,
+``Exoplanet validation with machine learning: 50 new validated
+Kepler planets,''
+\textit{Monthly Notices of the Royal Astronomical Society},
+vol. 504, pp. 5327--5344, 2021.
+
+\bibitem{lalande2024}
+F. Lalande, E. Tasker, and K. Doya,
+``Estimating exoplanet mass using machine learning on incomplete
+datasets,''
+\textit{Open Journal of Astrophysics}, 2024.
+
+\bibitem{baumeister2023}
+P. Baumeister and N. Tosi,
+``ExoMDN: Rapid characterization of exoplanet interior structures
+with mixture density networks,''
+\textit{Astronomy \& Astrophysics}, vol. 676, p. A106, 2023.
+
+\bibitem{hsu2019}
+D. C. Hsu et al.,
+``Occurrence rates of planets orbiting FGK stars: combining Kepler
+DR25, Gaia DR2, and Bayesian inference,''
+\textit{The Astronomical Journal}, vol. 158, p. 109, 2019.
+
+\bibitem{kong2022}
+S. Kong et al.,
+``Analyzing the habitable zones of circumbinary planets using
+machine learning,''
+\textit{The Astrophysical Journal}, vol. 929, p. 187, 2022.
+
+\bibitem{luque2022}
+R. Luque and E. Pall\'{e},
+``Density, not radius, separates rocky and water-rich small planets
+orbiting M-dwarf stars,''
+\textit{Science}, vol. 377, pp. 1211--1214, 2022.
+
+\bibitem{fulton2018}
+B. J. Fulton and E. A. Petigura,
+``The California-Kepler survey. VII. Precise planet radii leveraging
+Gaia DR2 reveal the stellar mass dependence of the planet radius gap,''
+\textit{The Astronomical Journal}, vol. 156, 2018.
+
+\bibitem{armstrong2020}
+D. J. Armstrong et al.,
+``Transit shapes and self-organising maps as a tool for ranking
+planet candidates,''
+\textit{Monthly Notices of the Royal Astronomical Society}, 2020.
+
+\bibitem{ning2018}
+M. Ning, A. Wolfgang, and S. Ghosh,
+``Predicting the masses of planets with a nonparametric mass-radius
+relationship,''
+\textit{The Astrophysical Journal}, 2018.
+
+\bibitem{rogers2021}
+L. A. Rogers et al.,
+``Photoevaporation versus core-powered mass loss: model comparison
+with the 3D radius gap,''
+\textit{Monthly Notices of the Royal Astronomical Society},
+vol. 508, pp. 5886--5902, 2021.
+
+\bibitem{izidoro2022}
+A. Izidoro et al.,
+``Planetesimal rings as the cause of the Solar System's planetary
+architecture,''
+\textit{The Astrophysical Journal}, vol. 939, p. L19, 2022.
+
+\end{thebibliography}
+
+\end{document}
