@@ -68,6 +68,12 @@ Third, naive data preprocessing steps routinely drop observations containing mis
 To resolve these foundational issues, this report constructs a new, methodologically sound KDD pipeline. It replaces arbitrary scoring with the standardized Earth Similarity Index (ESI) \cite{EarthSimilarityIndex} and utilizes the Kopparapu et al. (2013) equations to establish rigorous HZ boundaries. It applies the Chen \& Kipping (2017) mass-radius relationship to safely impute missing RV data, ensuring demographic completeness. Finally, the pipeline provides a deployable Python architecture for algorithmic clustering and candidate prioritization, entirely devoid of evaluation leakage.
 
 \section{Literature Review}
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=\columnwidth,height=0.85\textheight,keepaspectratio]{plot00_flowchart.png}}
+\caption{System architecture and logic flow for the KDD pipeline. The algorithm progresses from raw data ingestion through unsupervised clustering, ultimately applying post-hoc physical constraints to identify habitable candidates without target leakage.}
+\label{fig:pipeline_flow}
+\end{figure}
 The proliferation of exoplanet data has spurred significant efforts to leverage machine learning for demographic classification. Early frameworks often focused on defining distinct boundaries between terrestrial planets and sub-Neptunes based strictly on mass-radius relationships. For instance, Ning et al. (2018) \cite{ning2018} and Mousavi-Sadr et al. (2023) \cite{mousavi2023} utilized non-parametric and supervised models to predict masses and radii for incomplete datasets. However, Lalande et al. (2024) \cite{lalande2024} demonstrated that naive imputation methods can introduce systematic biases, underscoring the necessity of physics-based interpolations like the Chen \& Kipping relationships utilized in our pipeline.
 
 In the realm of habitability prioritization, studies such as Hsu et al. (2019) \cite{hsu2019} and Schlecker et al. (2021) \cite{schlecker2021} focused on occurrence rates and planetary population synthesis. More recently, clustering techniques have been applied to transmission spectra \cite{matchev2022} and circumbinary habitable zones \cite{kong2022}. However, as highlighted by Fotopoulou (2024) \cite{fotopoulou2024}, the application of unsupervised learning in astronomy requires careful handling of feature collinearity. Armstrong et al. (2020, 2021) \cite{armstrong2020, armstrong2021} utilized self-organizing maps and random forests to rank and validate candidates, but many such models relied on ad-hoc scoring metrics. Recent physical models by Luque \& Pall\'{e} (2022) \cite{luque2022} and Fulton \& Petigura (2018) \cite{fulton2018} have shifted the consensus toward the primacy of bulk density over radius in separating rocky worlds from water worlds (a conclusion supported by Brinkman et al., 2025 \cite{brinkman2025}). Our methodology addresses the limitations of prior KDD pipelines by synthesizing these findings: explicitly separating the structural dimensions via PCA, incorporating density into a standardized ESI metric, and enforcing the deterministic Kopparapu constraints to prevent collinear thermal confounding.
@@ -145,11 +151,7 @@ Raw archive data is imperfect. A prime example is the exoplanet Kepler-186 f. In
 
 \section{Data Preprocessing and Feature Transformation}
 
-\begin{figure}[htbp]
-\centerline{\includegraphics[width=\columnwidth]{plot00_flowchart.png}}
-\caption{System architecture and logic flow for the KDD pipeline. The algorithm progresses from raw data ingestion through unsupervised clustering, ultimately applying post-hoc physical constraints to identify habitable candidates without target leakage.}
-\label{fig:pipeline_flow}
-\end{figure}
+
 
 \begin{figure*}[htbp]
 \centerline{\includegraphics[width=\textwidth]{plot10C_comparison.png}}
