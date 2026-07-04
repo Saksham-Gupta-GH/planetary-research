@@ -88,13 +88,16 @@ The generalized ESI formula is a weighted geometric mean:
 To capture both the structural composition and the atmospheric retention capability of the planet, the ESI utilizes four fundamental parameters: Mean Radius, Bulk Density, Escape Velocity, and Surface Temperature. This effectively balances the structural properties against the thermodynamic environment. For improved readability and integer-like comparative ranking throughout this paper, the final computed ESI scores are scaled by a factor of 10.
 
 \section{Data Acquisition and Curatorial Methodology}
-Data is queried directly from the NASA Exoplanet Archive via the International Virtual Observatory Alliance (IVOA) compliant Table Access Protocol (TAP). The pipeline targets the Planetary Systems Composite Parameters (\texttt{pscomppars}) table \cite{pscomppars_table}. The raw initial feature distributions prior to missing data imputation are presented in Figure \ref{fig:feature_distributions}.
 
 \begin{figure*}[htbp]
 \centerline{\includegraphics[width=\textwidth]{plot02_feature_distributions.png}}
 \caption{Distributions of five primary structural features after outlier removal.}
 \label{fig:feature_distributions}
-\end{figure*} 
+\end{figure*}
+
+Data is queried directly from the NASA Exoplanet Archive via the International Virtual Observatory Alliance (IVOA) compliant Table Access Protocol (TAP). The pipeline targets the Planetary Systems Composite Parameters (\texttt{pscomppars}) table \cite{pscomppars_table}. The raw initial feature distributions prior to missing data imputation are presented in Figure \ref{fig:feature_distributions}.
+
+ 
 
 To evaluate recovery rates without circular logic, an external validation dataset was created from twenty expert-curated target planets that are generally agreed to reside in or near their respective habitable zones. The deduplicated target list is provided in Table \ref{tab:targets}.
 
@@ -123,9 +126,23 @@ Kepler-186 f     & Kepler-452 b \\
 \end{table}
 
 \subsection{Anomaly Resolution: The Kepler-186 f Conundrum}
+
+\begin{figure*}[htbp]
+\centerline{\includegraphics[width=\textwidth]{plot09_elbow_silhouette.png}}
+\caption{K-Means optimal cluster selection. The visual knee in inertia and peak in silhouette score consistently indicate $k=5$.}
+\label{fig:elbow}
+\end{figure*}
+
 Raw archive data is imperfect. A prime example is the exoplanet Kepler-186 f. In unfiltered datasets, Kepler-186 f frequently appears with an equilibrium temperature ($T_{eq}$) of approximately 697 K, which is physically impossible for a planet orbiting an M-dwarf star at a semi-major axis of 0.43 AU. If a clustering pipeline utilizes "target protection", it actively masks this massive data error, completely invalidating the algorithm's predictive integrity. The revised KDD pipeline removes all target protection and recalculates anomalous temperatures post-imputation using a physics-based thermal rectification model assuming an Earth-like Bond albedo of 0.3. 
 
 \section{Data Preprocessing and Feature Transformation}
+
+\begin{figure*}[htbp]
+\centerline{\includegraphics[width=\textwidth]{plot10C_comparison.png}}
+\caption{Side-by-side visualization of K-Means and Agglomerative Hierarchical clustering executed on the exact same PCA-transformed structural feature space.}
+\label{fig:kmeans_vs_agg_pca}
+\end{figure*}
+
 \subsection{Outlier Rejection without Target Protection}
 A universal Z-score filter is applied. Crucially, unlike flawed previous methodologies, no curated lists of "habitable candidates" are protected from this filter. Any planet that exceeds the anomaly threshold ($|Z| > 4.5$) is rejected from clustering regardless of its identity.
 
@@ -135,29 +152,23 @@ To resolve collinearity, the pipeline applies Principal Component Analysis (PCA)
 \section{Unsupervised Clustering Dynamics}
 
 \begin{figure*}[htbp]
-\centerline{\includegraphics[width=\textwidth]{plot10C_comparison.png}}
-\caption{Side-by-side visualization of K-Means and Agglomerative Hierarchical clustering executed on the exact same PCA-transformed structural feature space.}
-\label{fig:kmeans_vs_agg_pca}
-\end{figure*}
-
-\subsection{K-Means Clustering and the Silhouette Paradox}
-Many researchers mistakenly rely exclusively on the Silhouette Score. However, in astrophysical datasets characterized by continuous population distributions, the Silhouette Score will almost always decline monotonically from $k=2$. Instead, the pipeline relies on the Elbow Method (WCSS) and Domain Interpretability, converging on $k=5$. As shown in Fig. \ref{fig:elbow}, the elbow inflection occurs precisely at $k=5$, while the silhouette score remains reasonable before its monotonic decline.
-
-\begin{figure*}[htbp]
-\centerline{\includegraphics[width=\textwidth]{plot09_elbow_silhouette.png}}
-\caption{K-Means optimal cluster selection. The visual knee in inertia and peak in silhouette score consistently indicate $k=5$.}
-\label{fig:elbow}
-\end{figure*}
-
-
-
-\section{Results and Analysis}
-
-\begin{figure*}[htbp]
 \centerline{\includegraphics[width=\textwidth]{plot11C_cluster_sizes_comparison.png}}
 \caption{Comparison of cluster population sizes between K-Means and Agglomerative algorithms.}
 \label{fig:cluster_sizes_comparison}
 \end{figure*}
+
+
+\subsection{K-Means Clustering and the Silhouette Paradox}
+Many researchers mistakenly rely exclusively on the Silhouette Score. However, in astrophysical datasets characterized by continuous population distributions, the Silhouette Score will almost always decline monotonically from $k=2$. Instead, the pipeline relies on the Elbow Method (WCSS) and Domain Interpretability, converging on $k=5$. As shown in Fig. \ref{fig:elbow}, the elbow inflection occurs precisely at $k=5$, while the silhouette score remains reasonable before its monotonic decline.
+
+\section{Results and Analysis}
+
+\begin{figure*}[htbp]
+\centerline{\includegraphics[width=\textwidth]{plot18_habitability_scores.png}}
+\caption{Habitability score distribution (left) and top 20 ranked candidates (right); gold bars indicate validated target planets.}
+\label{fig:scores}
+\end{figure*}
+
 
 \subsection{Earth-Similarity Prioritization and Scoring}
 Every planet within the identified Terrestrial cluster is evaluated against the deterministic Kopparapu limits. For the planets that survive the structural clustering and the HZ filtering, the pipeline computes the continuous, real-valued Earth Similarity Index (ESI) based on the parameters established by Schulze-Makuch et al. (Table \ref{tab:scoring}). 
@@ -184,6 +195,13 @@ The separation of these variables in the geometric mean explicitly prevents the 
 
 
 \subsection{Validation Without Evaluation Leakage}
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=\columnwidth]{plot20_radar_top5.png}}
+\caption{Radar chart of the top 5 candidates across five normalised dimensions; larger polygon area indicates greater multi-dimensional Earth-similarity.}
+\label{fig:radar}
+\end{figure}
+
 The ultimate test of this pipeline is its ability to recover known, curated candidates for habitability without ever explicitly feeding the algorithm those targets or protecting them from statistical filtration. 
 
 Upon execution, the pipeline yielded a total of 40 highly viable habitable candidates. Of the 20 ground-truth validation targets, the pipeline independently recovered exactly 12 planets without any explicit target masking or data leakage. The 8 target planets that were rejected failed either the rigorous PCA-transformed clustering assignment (e.g., they grouped with sub-Neptunes) or fell strictly outside the deterministic Kopparapu habitable zone boundaries calculated for their specific host star's spectral class. Specifically, \textbf{Gliese 12 b}, \textbf{TOI-2095 c}, \textbf{K2-133 e}, \textbf{TOI-6002 b}, \textbf{TOI-1452 b}, and \textbf{TOI-712 d} failed to meet the strict bounds of the multi-dimensional terrestrial cluster in PCA space, whereas \textbf{Kepler-1052 c} and \textbf{TOI-4336 A b} possessed insolation fluxes exceeding the strict Kopparapu Runaway Greenhouse limits for their stellar class. This highlights the scientific rigor of removing target protection: instead of guaranteeing recovery by construction, the pipeline honestly flags candidates that do not mathematically fit the strict definition of a terrestrial habitable world.
@@ -191,12 +209,6 @@ Upon execution, the pipeline yielded a total of 40 highly viable habitable candi
 Furthermore, the post-imputation thermal rectification successfully resolved the Kepler-186 f anomaly. The pipeline correctly identified the $T_{eq} = 697.4$ K database value as a massive anomaly given the planet's $S = 0.30 S_\oplus$ insolation, and rectified the temperature to a physically consistent $205.7$ K, yielding a very high ESI score of 0.890 without manual intervention. The top candidates are presented in Table \ref{tab:top10}.
 
 
-
-\begin{figure*}[htbp]
-\centerline{\includegraphics[width=\textwidth]{plot18_habitability_scores.png}}
-\caption{Habitability score distribution (left) and top 20 ranked candidates (right); gold bars indicate validated target planets.}
-\label{fig:scores}
-\end{figure*}
 
 \begin{table}[htbp]
 \caption{Top 10 Habitable Candidates by ESI Score}
@@ -221,12 +233,6 @@ TOI-700 e     & 9.06 & 0.953 & 295.1 & 1.27 \\
 \end{center}
 \end{table}
 
-
-\begin{figure}[htbp]
-\centerline{\includegraphics[width=\columnwidth]{plot20_radar_top5.png}}
-\caption{Radar chart of the top 5 candidates across five normalised dimensions; larger polygon area indicates greater multi-dimensional Earth-similarity.}
-\label{fig:radar}
-\end{figure}
 
 \section{Novelty and Contributions}
 This framework presents several unique innovations in comparison to existing scientific literature:
