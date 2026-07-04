@@ -146,6 +146,12 @@ Raw archive data is imperfect. A prime example is the exoplanet Kepler-186 f. In
 \section{Data Preprocessing and Feature Transformation}
 
 \begin{figure*}[htbp]
+\centerline{\includegraphics[width=\textwidth]{plot00_flowchart.png}}
+\caption{System architecture and logic flow for the KDD pipeline. The algorithm progresses from raw data ingestion through unsupervised clustering, ultimately applying post-hoc physical constraints to identify habitable candidates without target leakage.}
+\label{fig:pipeline_flow}
+\end{figure*}
+
+\begin{figure*}[htbp]
 \centerline{\includegraphics[width=\textwidth]{plot10C_comparison.png}}
 \caption{Side-by-side visualization of K-Means and Agglomerative Hierarchical clustering executed on the exact same PCA-transformed structural feature space.}
 \label{fig:kmeans_vs_agg_pca}

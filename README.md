@@ -1,79 +1,96 @@
-# Exoplanet Habitability Analysis & Discovery Dashboard
+# Planetary Research Data Pipeline
 
-[![Vercel Deployment](https://img.shields.io/badge/Deployment-Vercel-black?style=flat-square&logo=vercel)](https://exoplanet-analysis.vercel.app/)
-[![NASA Exoplanet Archive](https://img.shields.io/badge/Data-NASA_Exoplanet_Archive-blue?style=flat-square)](https://exoplanetarchive.ipac.caltech.edu/)
-[![Python 3.9+](https://img.shields.io/badge/Python-3.9+-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
-[![React](https://img.shields.io/badge/Frontend-React_/_Vite-61DAFB?style=flat-square&logo=react&logoColor=black)](https://reactjs.org/)
+This repository contains the end-to-end Knowledge Discovery in Databases (KDD) pipeline for predicting exoplanetary habitability using unsupervised machine learning.
 
-A comprehensive data mining project and interactive dashboard designed to identify and analyze potentially habitable exoplanets using data from the NASA Exoplanet Archive.
+## Pipeline Architecture
 
-**Live Demo:** [exoplanet-analysis.vercel.app](https://exoplanet-analysis.vercel.app/)
+The complete workflow, from ingesting the raw NASA Exoplanet Archive CSV to the final associative rule mining, is documented below:
 
----
+```mermaid
+graph TD
+    %% Base Styles
+    classDef section fill:#1f1f2e,stroke:#4d4d73,stroke-width:2px,color:#fff,font-weight:bold;
+    classDef step fill:#2d2d44,stroke:#666699,stroke-width:1px,color:#e0e0e0;
+    classDef highlight fill:#1b4d3e,stroke:#2e8b57,stroke-width:2px,color:#fff,font-weight:bold;
+    classDef output fill:#4d1b1b,stroke:#8b2e2e,stroke-width:1px,color:#ffcccc;
 
-## 🔬 Data Mining & Research
-This project is primarily a scientific exploration into exoplanet habitability using machine learning and statistical analysis.
+    %% -----------------------------------------------------------------
+    %% SECTION 1: LOAD & PREPROCESS
+    %% -----------------------------------------------------------------
+    subgraph S1 [SECTION 1 to 3: INGESTION & DATA CLEANING]
+        A[Load Raw NASA CSV Archive] --> B[Filter default_flag == 1]
+        B --> C[Isolate 17 Core Features]
+        C --> D[Chen & Kipping Imputation<br/>Radii <--> Mass Mappings]
+        D --> E[Thermal Rectification<br/>Fix pl_eqt using pl_insol]
+        E --> F[KNN Imputer<br/>Fill remaining NaNs]
+        F --> G[StandardScaler<br/>Normalize Feature Matrix]
+    end
+    class S1 section;
+    class A,B,C,D,E,F,G step;
 
-### Core Analysis Features
-- **Data Preprocessing**: Comprehensive cleaning of the NASA Exoplanet Archive dataset, including **KNN Imputation** for missing stellar and planetary parameters.
-  - **Piecewise Mass-Radius Imputation**: Utilizing the Chen & Kipping (2017) probabilistic forecaster to safely impute missing radii for Radial Velocity (RV) targets, eliminating severe demographic bias.
-- **Clustering Analysis**: 
-  - **K-Means Clustering**: Identifying distinct groups of exoplanets based on physical characteristics.
-  - **Agglomerative Hierarchical Clustering**: Using **PCA (Principal Component Analysis)** for dimensionality reduction and Ward linkage. Both algorithms are strictly executed on the identical PCA-transformed space.
-- **Unbiased Outlier Rejection**: Implementation of a universal Z-score filter (|Z| > 4.5). Critically, **zero target protection** is applied—no curated habitable candidates are shielded from statistical filtration, guaranteeing non-circular evaluation.
-- **Habitability Prioritization**: A deterministic, physics-based scoring engine integrating the **Earth Similarity Index (ESI)** and the empirically validated **Kopparapu Circumstellar Habitable Zone limits**.
-- **Statistical Visualization**: Extensive plotting of feature correlations, distributions, and PCA-based cluster "islands" to visualize the planetary landscape.
+    %% -----------------------------------------------------------------
+    %% UNSUPERVISED CLUSTERING
+    %% -----------------------------------------------------------------
+    subgraph S2 [SECTIONS 4 to 6: MULTI-STAGED UNSUPERVISED CLUSTERING]
+        G --> H[Z-Score Outlier Removal<br/>Set aside absolute values where z > 4.5]
+        H --> I[Clean Dataset]
+        H --> J[Extreme Outliers Box]
+        
+        I --> K[PCA Dimensionality Reduction<br/>Retain 85% variance]
+        
+        K --> L[K-Means Clustering<br/>k=5 on PCA Space]
+        K --> M[Hierarchical Agglomerative<br/>Ward Linkage on PCA Space]
+        
+        J --> N[Post-hoc Assignment<br/>Map outliers to closest centroid]
+        L --> N
+        M --> N
+        
+        N --> O[Identify Earth-like Cluster<br/>Centroid closest to Earth baseline]
+        O --> P[Isolate Earth-like Candidates]
+        
+        P --> Q[DBSCAN Sub-Clustering<br/>eps=0.6, min_samples=5 on Core 3 Features]
+        Q --> R[Filter out DBSCAN Noise]
+        Q --> S[Dense Sub-clusters identified]
+    end
+    class S2 section;
+    class H,I,J,K,L,M,N,O,P,Q,R,S step;
 
-### Key Data Mining Scripts
-- `dm.py`: The primary analysis engine containing the clustering logic, PCA transformations, and visualization generation.
-- `dm2.py`: Supplementary classification and advanced data mining routines.
+    %% -----------------------------------------------------------------
+    %% SCORING & FILTERING
+    %% -----------------------------------------------------------------
+    subgraph S3 [SECTION 7: HABITABILITY SCORING & FILTERING]
+        S --> T[Kopparapu Habitable Zone Boundary Check<br/>Recent Venus to Early Mars limits]
+        T --> U[Calculate Earth Similarity Index ESI<br/>Weighted Geometric Mean of R, rho, vesc, T]
+        U --> V{Target Planet Recovery Check<br/>Are all 20 target planets present?}
+        V -->|Yes| W[Generate Final Habitable Candidates DataFrame]
+    end
+    class S3 section;
+    class T,U,V step;
+    class W highlight;
 
----
+    %% -----------------------------------------------------------------
+    %% DOWNSTREAM ANALYSIS
+    %% -----------------------------------------------------------------
+    subgraph S4 [SECTIONS 8 to 11: DOWNSTREAM ANALYTICS & ARMs]
+        W --> X[Isolation Forest Outlier Benchmarking]
+        
+        W --> Y[Classification Pipeline<br/>Label positive targets via score percentile]
+        Y --> Z[SMOTE Class Balancing<br/>k_neighbors = 5]
+        Z --> AA[Train Decision Tree Classifier]
+        Z --> AB[Train Gaussian Naive Bayes Classifier]
+        
+        W --> AC[Categorical Binning<br/>Convert continuous metrics to discrete bins]
+        AC --> AD[Apriori Rule Mining<br/>Filter with Habitable as Consequent]
+    end
+    class S4 section;
+    class X,Y,Z,AA,AB,AC,AD step;
 
-## 🌐 Interactive Dashboard
-While the research forms the foundation, the web application provides an intuitive interface for real-time planetary discovery.
-
-### Web Features
-- **Similarity Finder**: Search the entire processed catalogue of exoplanets using a flexible, 17-feature Z-score normalized distance algorithm. Find planets most similar to any hypothetical or known configuration.
-- **Habitability Predictor**: A real-time scoring engine that applies physical gates and scoring components (Radius, Temp, Insolation, etc.) to assess the habitability of a custom planetary profile.
-- **Earth Baseline Reference**: Direct comparison with Earth's physical parameters to provide scientific context for assessments.
-- **Modern UI**: A premium, "Google-inspired" aesthetic built with React, Vite, Tailwind CSS, and Shadcn UI components.
-
----
-
-## 🛠️ Technology Stack
-- **Data Science**: Python, Pandas, NumPy, Scikit-Learn, SciPy, Matplotlib, Seaborn.
-- **Frontend**: React, Vite, Lucide React, Tailwind CSS.
-- **Deployment**: Vercel.
-
----
-
-## 🚀 Getting Started
-
-### Data Analysis (Python)
-1. Ensure you have the NASA dataset `PS_2026.01.16_08.12.38.csv` in the root.
-2. Install dependencies:
-   ```bash
-   pip install pandas numpy scikit-learn matplotlib seaborn scipy
-   ```
-3. Run the analysis:
-   ```bash
-   python dm.py
-   ```
-
-### Web Dashboard (React)
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
-2. Start the development server:
-   ```bash
-   npm run dev
-   ```
-
----
-
-## 📊 Results Summary
-The revised pipeline operates entirely without evaluation leakage or "target protection." Tested against a ground-truth list of 20 validated habitable-zone planets, the algorithm independently recovered 12 candidates purely through predictive physical clustering. The framework identifies and prioritizes ultra-high-value targets such as **Kepler-1649 c**, **TRAPPIST-1 e**, and a thermally rectified **Kepler-186 f**.
-
-Developed by [Saksham Gupta](https://github.com/Saksham-Gupta-GH)
+    %% -----------------------------------------------------------------
+    %% TERMINAL VISUALIZATIONS
+    %% -----------------------------------------------------------------
+    subgraph S5 [SECTION 12: EXECUTION & FILE OUTPUTS]
+        X & AA & AB & AD --> AE[Save Diagnostic Suite<br/>27 Plots exported to Local Directory]
+    end
+    class S5 section;
+    class AE output;
+```
