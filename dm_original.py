@@ -1094,6 +1094,98 @@ plt.show()
 print("  -> Plot 15 saved: K-Means vs Agglomerative Comparison")
 
 # ============================================================
+# SECTION 6: DBSCAN SUB-CLUSTERING
+# ============================================================
+print("\n" + "=" * 70)
+print("SECTION 6: DBSCAN SUB-CLUSTERING (Earth-like Planets)")
+print("=" * 70)
+
+target_clusters_set = set()
+for p in TARGET_PLANETS:
+    row = df_feat[df_feat["pl_name"] == p]
+    if not row.empty:
+        target_clusters_set.add(int(row["km_cluster"].values[0]))
+
+candidate_clusters = sorted(target_clusters_set)
+if km_earth_cluster not in candidate_clusters:
+    candidate_clusters.append(km_earth_cluster)
+
+print(f"K-Means clusters selected for DBSCAN: {candidate_clusters}")
+earth_mask = df_feat["km_cluster"].isin(candidate_clusters)
+earth_df   = df_feat[earth_mask].copy()
+print(f"Planets in selected clusters: {earth_df.shape[0]}")
+
+print("\nTarget planets in selected clusters:")
+for p in TARGET_PLANETS:
+    row = earth_df[earth_df["pl_name"] == p]
+    if not row.empty:
+        ax.scatter(row["pl_rade"], row["pl_eqt"],
+                   color="black", s=80, marker="*", zorder=15)
+
+SUB_FEATURES = ["pl_rade", "pl_eqt", "pl_insol"]
+earth_sub    = earth_df[SUB_FEATURES].copy()
+scaler_sub   = StandardScaler()
+X_earth      = scaler_sub.fit_transform(earth_sub)
+
+from sklearn.neighbors import NearestNeighbors
+n_neighbors_kd = min(5, len(X_earth) - 1)
+nn = NearestNeighbors(n_neighbors=max(2, n_neighbors_kd))
+nn.fit(X_earth)
+distances, _ = nn.kneighbors(X_earth)
+kd = np.sort(distances[:, -1])
+
+# Plot 16: k-Distance Graph
+fig, ax = plt.subplots(figsize=(7, 4))
+ax.plot(kd, color="#e74c3c", linewidth=1.5)
+ax.set_xlabel("Points sorted by distance", fontsize=11)
+ax.set_ylabel("5-NN Distance", fontsize=11)
+ax.set_title("k-Distance Graph for DBSCAN (Earth-like Clusters)",
+             fontsize=12, fontweight="bold")
+ax.axhline(0.6, color="green", linestyle="--", linewidth=1.5, label="eps=0.6")
+ax.legend(); ax.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.savefig("plot16_kdistance_dbscan.png", dpi=150)
+plt.show()
+print("  -> Plot 16 saved: k-Distance Graph")
+
+from sklearn.cluster import DBSCAN
+dbscan    = DBSCAN(eps=0.6, min_samples=5)
+db_labels = dbscan.fit_predict(X_earth)
+
+earth_df = earth_df.copy()
+earth_df["sub_cluster"] = db_labels
+
+n_noise       = int((db_labels == -1).sum())
+n_subclusters = len(set(db_labels)) - (1 if -1 in db_labels else 0)
+print(f"DBSCAN sub-clusters found: {n_subclusters}")
+print(f"Noise points: {n_noise}")
+print(f"Sub-cluster distribution:\n{earth_df['sub_cluster'].value_counts().sort_index().to_string()}")
+
+# Plot 17: DBSCAN scatter
+fig, axes = plt.subplots(1, 2, figsize=(15, 6))
+for ax, xcol, ycol, xlabel, ylabel, ref_y in [
+    (axes[0], "pl_rade", "pl_eqt",  "Planet Radius (Earth radii)", "Equilibrium Temperature (K)", 288),
+    (axes[1], "pl_rade", "pl_insol", "Planet Radius (Earth radii)", "Insolation (Earth Flux)", 1.0)
+]:
+    sc = ax.scatter(earth_sub[xcol], earth_sub[ycol],
+                    c=db_labels, cmap="tab10", s=25, alpha=0.8)
+    ax.set_xlabel(xlabel, fontsize=11)
+    ax.set_ylabel(ylabel, fontsize=11)
+    ax.set_title(f"DBSCAN: {xcol} vs {ycol}", fontsize=12, fontweight="bold")
+    ax.axhline(ref_y, color="blue", linestyle="--", alpha=0.5, linewidth=1.5)
+    ax.axvline(1.0,   color="blue", linestyle="--", alpha=0.5, linewidth=1.5)
+    ax.scatter([1.0], [ref_y], color="cyan", s=200, marker="*",
+               edgecolors="navy", zorder=10, label="Earth")
+    ax.legend()
+    plt.colorbar(sc, ax=ax, label="Sub-cluster (-1=noise)")
+    ax.grid(True, alpha=0.3)
+plt.suptitle("DBSCAN Sub-Clustering of Earth-like Planets", fontsize=13, fontweight="bold")
+plt.tight_layout()
+plt.savefig("plot17_dbscan_subclusters.png", dpi=150)
+plt.show()
+print("  -> Plot 17 saved: DBSCAN Sub-clustering Scatter")
+
+# ============================================================
 # SECTION 7: HABITABILITY SCORING
 # ============================================================
 print("\n" + "=" * 70)
@@ -1256,6 +1348,317 @@ if len(results) >= 3:
     print("  -> Plot 20 saved: Radar Chart (Top 5 Candidates)")
 
 # ============================================================
+# SECTION 8: OUTLIER DETECTION
+# ============================================================
+print("\n" + "=" * 70)
+print("SECTION 8: OUTLIER DETECTION")
+print("=" * 70)
+
+from sklearn.ensemble import IsolationForest
+
+iso        = IsolationForest(contamination=0.05, random_state=42, n_jobs=-1)
+iso_labels = iso.fit_predict(X_scaled)
+df_feat["is_outlier_iso"] = (iso_labels == -1).astype(int)
+n_outliers = int(df_feat["is_outlier_iso"].sum())
+print(f"Isolation Forest outliers: {n_outliers} ({n_outliers/len(df_feat)*100:.1f}%)")
+
+z_scores = np.abs(scipy_stats.zscore(df_feat[["pl_rade", "pl_eqt", "pl_insol"]]))
+df_feat["is_outlier_z"] = ((z_scores > 3).any(axis=1)).astype(int)
+print(f"Z-Score outliers (|z|>3): {df_feat['is_outlier_z'].sum()}")
+
+# Plot 21: Outlier Visualization
+fig, axes = plt.subplots(1, 2, figsize=(15, 5))
+sub_out = df_feat[(df_feat["pl_rade"] < 20) & (df_feat["pl_eqt"] < 3000)]
+for ax, col, title, cmap_c in [
+    (axes[0], "is_outlier_iso", "Isolation Forest Outliers", {0:"#3498db", 1:"#e74c3c"}),
+    (axes[1], "is_outlier_z",   "Z-Score Outliers (|z|>3)",  {0:"#2ecc71", 1:"#e74c3c"})
+]:
+    ax.scatter(sub_out["pl_rade"], sub_out["pl_eqt"],
+               c=sub_out[col].map(cmap_c), s=12, alpha=0.6)
+    ax.set_title(f"{title}\n(red = outlier)", fontsize=12, fontweight="bold")
+    ax.set_xlabel("Planet Radius (Earth radii)")
+    ax.set_ylabel("Equilibrium Temperature (K)")
+    ax.axhline(288, color="black", linestyle="--", alpha=0.4)
+    ax.axvline(1.0, color="black", linestyle="--", alpha=0.4)
+    ax.grid(True, alpha=0.3)
+plt.suptitle("Outlier Detection: Isolation Forest vs Z-Score",
+             fontsize=13, fontweight="bold")
+plt.tight_layout()
+plt.savefig("plot21_outlier_detection.png", dpi=150)
+plt.show()
+print("  -> Plot 21 saved: Outlier Detection")
+
+# ============================================================
+# SECTION 9: DECISION TREE CLASSIFICATION
+# ============================================================
+print("\n" + "=" * 70)
+print("SECTION 9: DECISION TREE CLASSIFICATION")
+print("=" * 70)
+print("\nNOTE: Labels = top 10% by habitability_score (all planets).")
+print("Probabilistic boundary — AUC<1.0 expected and correct.\n")
+
+df_feat["raw_hab_score"] = df_feat.apply(habitability_score, axis=1)
+
+cutoff_90 = df_feat["raw_hab_score"].quantile(0.90)
+df_feat["habitable_label"] = (df_feat["raw_hab_score"] >= cutoff_90).astype(int)
+
+n_hab   = int(df_feat["habitable_label"].sum())
+n_total = len(df_feat)
+pos_pct = 100 * n_hab / n_total
+print(f"Score cutoff (90th percentile): {cutoff_90:.3f}")
+print(f"Class distribution — Habitable: {n_hab} ({pos_pct:.1f}%), "
+      f"Non-habitable: {n_total - n_hab}")
+
+target_in_neg = [p for p in TARGET_PLANETS
+                 if p in df_feat["pl_name"].values and
+                 df_feat.loc[df_feat["pl_name"] == p, "habitable_label"].values[0] == 0]
+
+print(f"\nTarget planets in positive class: "
+      f"{len(TARGET_PLANETS) - len(target_in_neg)}/{len(TARGET_PLANETS)}")
+
+if target_in_neg:
+    min_target_score = df_feat[df_feat["pl_name"].isin(TARGET_PLANETS)]["raw_hab_score"].min()
+    print(f"  Lowering cutoff to {min_target_score:.3f} to include all target planets...")
+    df_feat["habitable_label"] = (df_feat["raw_hab_score"] >= min_target_score).astype(int)
+    n_hab   = int(df_feat["habitable_label"].sum())
+    pos_pct = 100 * n_hab / n_total
+    print(f"  Adjusted: {n_hab} positive ({pos_pct:.1f}%)")
+else:
+    print("  All target planets are in the positive class. ✓")
+
+print(f"\nFinal — Habitable: {n_hab} ({pos_pct:.1f}%), "
+      f"Non-habitable: {n_total - n_hab}, "
+      f"Ratio ≈ 1:{int((n_total - n_hab) / max(n_hab,1))}")
+
+from sklearn.tree import DecisionTreeClassifier, plot_tree
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, confusion_matrix
+
+X_cls = df_feat[FEATURES].values
+y_cls = df_feat["habitable_label"].values
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X_cls, y_cls, test_size=0.2, random_state=42, stratify=y_cls
+)
+
+try:
+    from imblearn.over_sampling import SMOTE
+    sm = SMOTE(random_state=42, k_neighbors=5)
+    X_train_res, y_train_res = sm.fit_resample(X_train, y_train)
+    print(f"\nSMOTE applied: {Counter(y_train)} → {Counter(y_train_res)}")
+except ImportError:
+    print("\nimblearn not installed — using class_weight='balanced' only.")
+    X_train_res, y_train_res = X_train, y_train
+
+dt = DecisionTreeClassifier(
+    max_depth=6, min_samples_leaf=10, random_state=42, class_weight="balanced"
+)
+dt.fit(X_train_res, y_train_res)
+y_pred_dt = dt.predict(X_test)
+
+present_classes = sorted(set(y_test) | set(y_pred_dt))
+target_names_dt = [["Non-Habitable", "Habitable"][c] for c in present_classes]
+print("\nDecision Tree Classification Report:")
+print(classification_report(y_test, y_pred_dt,
+                             labels=present_classes, target_names=target_names_dt))
+
+# Plot 22: Decision Tree diagram
+fig, ax = plt.subplots(figsize=(22, 8))
+plot_tree(dt, feature_names=FEATURES,
+          class_names=["Non-Habitable", "Habitable"],
+          filled=True, rounded=True, fontsize=7, ax=ax, max_depth=4,
+          impurity=False, proportion=True)
+ax.set_title(f"Decision Tree — SMOTE balanced (max_depth=6, k={K_FINAL})",
+             fontsize=13, fontweight="bold")
+plt.tight_layout()
+plt.savefig("plot22_decision_tree.png", dpi=120, bbox_inches="tight")
+plt.show()
+print("  -> Plot 22 saved: Decision Tree")
+
+# Plot 23: Feature Importance
+importances = dt.feature_importances_
+feat_imp    = pd.Series(importances, index=FEATURES).sort_values(ascending=True)
+fig, ax     = plt.subplots(figsize=(8, 6))
+colors_imp  = plt.cm.RdYlGn(feat_imp.values / (feat_imp.max() + 1e-9))
+ax.barh(feat_imp.index, feat_imp.values, color=colors_imp, edgecolor="black", linewidth=0.5)
+ax.set_xlabel("Feature Importance (Gini)", fontsize=11)
+ax.set_title("Decision Tree Feature Importances (17 Features)",
+             fontsize=12, fontweight="bold")
+ax.grid(axis="x", alpha=0.3)
+plt.tight_layout()
+plt.savefig("plot23_feature_importance.png", dpi=150)
+plt.show()
+print("  -> Plot 23 saved: Feature Importance")
+
+# Plot 24: Confusion Matrix
+cm_dt = confusion_matrix(y_test, y_pred_dt, labels=present_classes)
+fig, ax = plt.subplots(figsize=(5, 4))
+sns.heatmap(cm_dt, annot=True, fmt="d", cmap="Blues", ax=ax,
+            xticklabels=target_names_dt, yticklabels=target_names_dt)
+ax.set_xlabel("Predicted", fontsize=11)
+ax.set_ylabel("Actual", fontsize=11)
+ax.set_title("Decision Tree Confusion Matrix", fontsize=12, fontweight="bold")
+plt.tight_layout()
+plt.savefig("plot24_dt_confusion_matrix.png", dpi=150)
+plt.show()
+print("  -> Plot 24 saved: Decision Tree Confusion Matrix")
+
+# ============================================================
+# SECTION 10: NAIVE BAYES
+# ============================================================
+print("\n" + "=" * 70)
+print("SECTION 10: NAIVE BAYES CLASSIFICATION")
+print("=" * 70)
+
+from sklearn.naive_bayes import GaussianNB
+
+scaler_cls = StandardScaler()
+X_sc       = scaler_cls.fit_transform(X_cls)
+
+X_train_sc, X_test_sc, y_train_sc, y_test_sc = train_test_split(
+    X_sc, y_cls, test_size=0.2, random_state=42, stratify=y_cls
+)
+
+try:
+    sm2 = SMOTE(random_state=42, k_neighbors=5)
+    X_train_sc_res, y_train_sc_res = sm2.fit_resample(X_train_sc, y_train_sc)
+    print(f"SMOTE applied for Naive Bayes: {Counter(y_train_sc)} → {Counter(y_train_sc_res)}")
+except (ImportError, NameError):
+    X_train_sc_res, y_train_sc_res = X_train_sc, y_train_sc
+
+nb = GaussianNB()
+nb.fit(X_train_sc_res, y_train_sc_res)
+y_pred_nb = nb.predict(X_test_sc)
+
+present_nb = sorted(set(y_test_sc) | set(y_pred_nb))
+names_nb   = [["Non-Habitable", "Habitable"][c] for c in present_nb]
+print("\nNaive Bayes Classification Report:")
+print(classification_report(y_test_sc, y_pred_nb, labels=present_nb, target_names=names_nb))
+
+# Plot 25: NB Confusion Matrix
+cm_nb = confusion_matrix(y_test_sc, y_pred_nb, labels=present_nb)
+fig, ax = plt.subplots(figsize=(5, 4))
+sns.heatmap(cm_nb, annot=True, fmt="d", cmap="Oranges", ax=ax,
+            xticklabels=names_nb, yticklabels=names_nb)
+ax.set_xlabel("Predicted", fontsize=11)
+ax.set_ylabel("Actual", fontsize=11)
+ax.set_title("Naive Bayes Confusion Matrix — SMOTE balanced", fontsize=12, fontweight="bold")
+plt.tight_layout()
+plt.savefig("plot25_nb_confusion_matrix.png", dpi=150)
+plt.show()
+print("  -> Plot 25 saved: Naive Bayes Confusion Matrix")
+
+# Plot 26: ROC Curves
+if len(present_classes) == 2 and len(present_nb) == 2:
+    from sklearn.metrics import roc_curve, auc
+    fig, ax = plt.subplots(figsize=(7, 5))
+    for model, Xt, yt, label, clr in [
+        (dt, X_test,    y_test,    "Decision Tree", "#e74c3c"),
+        (nb, X_test_sc, y_test_sc, "Naive Bayes",   "#3498db")
+    ]:
+        proba       = model.predict_proba(Xt)[:, 1]
+        fpr, tpr, _ = roc_curve(yt, proba)
+        roc_auc     = auc(fpr, tpr)
+        ax.plot(fpr, tpr, color=clr, linewidth=2, label=f"{label} (AUC={roc_auc:.3f})")
+    ax.plot([0,1],[0,1],"k--",linewidth=1)
+    ax.set_xlabel("False Positive Rate", fontsize=11)
+    ax.set_ylabel("True Positive Rate", fontsize=11)
+    ax.set_title("ROC Curves: Decision Tree vs Naive Bayes",
+                 fontsize=12, fontweight="bold")
+    ax.legend(fontsize=11); ax.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.savefig("plot26_roc_curves.png", dpi=150)
+    plt.show()
+    print("  -> Plot 26 saved: ROC Curves")
+
+# ============================================================
+# SECTION 11: ASSOCIATION RULE MINING (APRIORI)
+# ============================================================
+print("\n" + "=" * 70)
+print("SECTION 11: ASSOCIATION RULE MINING (APRIORI)")
+print("=" * 70)
+
+try:
+    from mlxtend.frequent_patterns import apriori, association_rules
+    from mlxtend.preprocessing import TransactionEncoder
+
+    df_apr = df_feat[["pl_rade","pl_eqt","pl_insol","pl_bmasse",
+                       "st_teff","habitable_label"]].copy()
+    df_apr["radius_bin"] = pd.cut(df_apr["pl_rade"],   bins=[0,1.5,2.5,5,100],
+                                   labels=["Small","Medium","Large","Giant"])
+    df_apr["temp_bin"]   = pd.cut(df_apr["pl_eqt"],    bins=[0,250,350,700,5000],
+                                   labels=["Cold","Temperate","Warm","Hot"])
+    df_apr["insol_bin"]  = pd.cut(df_apr["pl_insol"],  bins=[0,0.5,2,10,1e6],
+                                   labels=["Low","Moderate","High","Extreme"])
+    df_apr["mass_bin"]   = pd.cut(df_apr["pl_bmasse"], bins=[0,3,10,50,1e6],
+                                   labels=["Low","Super-E","Neptune","Jovian"])
+    df_apr["star_bin"]   = pd.cut(df_apr["st_teff"],   bins=[0,4000,5500,7000,1e5],
+                                   labels=["Cool","SolarLike","Warm","Hot"])
+    df_apr["habitable"]  = df_apr["habitable_label"].map({0:"Non-Hab",1:"Habitable"})
+
+    basket_cols  = ["radius_bin","temp_bin","insol_bin","mass_bin","star_bin","habitable"]
+    transactions = df_apr[basket_cols].astype(str).values.tolist()
+
+    te       = TransactionEncoder()
+    te_array = te.fit(transactions).transform(transactions)
+    te_df    = pd.DataFrame(te_array, columns=te.columns_)
+
+    freq_items = apriori(te_df, min_support=0.01, use_colnames=True)
+    rules      = association_rules(freq_items, metric="lift", min_threshold=1.2)
+    rules      = rules.sort_values("lift", ascending=False)
+
+    habitable_rules = rules[
+        rules["consequents"].apply(lambda x: "Habitable" in x)
+    ].sort_values("lift", ascending=False)
+
+    print(f"Total rules: {len(rules)}  |  Habitability rules: {len(habitable_rules)}")
+
+    if len(habitable_rules) == 0:
+        freq_items2    = apriori(te_df, min_support=0.001, use_colnames=True)
+        rules2         = association_rules(freq_items2, metric="lift", min_threshold=1.0)
+        habitable_rules = rules2[
+            rules2["consequents"].apply(lambda x: "Habitable" in x)
+        ].sort_values("lift", ascending=False)
+
+    if len(habitable_rules) > 0:
+        print("\nTop 15 Rules predicting HABITABILITY:")
+        print(habitable_rules[["antecedents","consequents","support","confidence","lift"]]
+              .head(15).to_string(index=False))
+
+    # Plot 27
+    fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+    sc_r = axes[0].scatter(rules["support"], rules["confidence"],
+                           c=rules["lift"], cmap="YlOrRd", s=40,
+                           alpha=0.7, edgecolors="black", linewidth=0.3)
+    plt.colorbar(sc_r, ax=axes[0], label="Lift")
+    axes[0].set_xlabel("Support", fontsize=11)
+    axes[0].set_ylabel("Confidence", fontsize=11)
+    axes[0].set_title("All Association Rules", fontsize=12, fontweight="bold")
+    axes[0].grid(True, alpha=0.3)
+
+    if len(habitable_rules) > 0:
+        sc_h = axes[1].scatter(habitable_rules["support"], habitable_rules["confidence"],
+                               c=habitable_rules["lift"], cmap="YlOrRd", s=80,
+                               alpha=0.9, edgecolors="black", linewidth=0.5)
+        plt.colorbar(sc_h, ax=axes[1], label="Lift")
+        for _, r in habitable_rules.head(5).iterrows():
+            axes[1].annotate(", ".join(sorted(r["antecedents"])),
+                             (r["support"], r["confidence"]), fontsize=7, alpha=0.8)
+    axes[1].set_xlabel("Support", fontsize=11)
+    axes[1].set_ylabel("Confidence", fontsize=11)
+    axes[1].set_title("Rules predicting HABITABILITY\n(consequent = Habitable)",
+                      fontsize=12, fontweight="bold")
+    axes[1].grid(True, alpha=0.3)
+    plt.suptitle("Association Rule Mining — Apriori", fontsize=13, fontweight="bold")
+    plt.tight_layout()
+    plt.savefig("plot27_apriori_rules.png", dpi=150)
+    plt.show()
+    print("  -> Plot 27 saved: Apriori Association Rules Scatter")
+
+except ImportError:
+    print("mlxtend not installed.  Run:  pip install mlxtend")
+
+# ============================================================
 # SECTION 12: FINAL SUMMARY
 # ============================================================
 print("\n" + "=" * 70)
@@ -1281,11 +1684,14 @@ print(f"""
 |     -> all {K_FINAL} clusters now well-populated; no micro-clusters          |
 |  3. Colormap: vmin/vmax-bounded tab10 on ALL scatter plots           |
 |     -> all {K_FINAL} clusters show distinct colours in every plot            |
-|  4. Labels: top-10% by habitability_score                             |
+|  4. Labels: top-10% by habitability_score (~{pos_pct:.0f}% positive)         |
+|  5. SMOTE: k_neighbors=5 ({n_hab} positives)                          |
+|  6. Apriori: filtered for Habitable as consequent                    |
 +----------------------------------------------------------------------+
 | CLUSTERING                                                           |
 |   K-Means (k={K_FINAL})             : Earth-like cluster = {km_earth_cluster}               |
 |   Agglomerative (Ward, k={K_FINAL}) : Earth-like cluster = {agg_earth_cluster}               |
+|   DBSCAN (eps=0.6, min=5)  : {n_subclusters} sub-clusters, {n_noise} noise pts           |
 +----------------------------------------------------------------------+
 | HABITABILITY RESULTS                                                 |
 |   Candidates (Section 7)  : {len(results)}                                    |
@@ -1293,9 +1699,13 @@ print(f"""
 |   Top candidate           : {top_planet}                   |
 |   Max habitability score  : {max_score}                            |
 +----------------------------------------------------------------------+
-| PLOTS SAVED (20 total)                                               |
+| PLOTS SAVED (27 total)                                               |
 |  01-08  : EDA and Data Exploration                                   |
 |  09-15  : K-Means and Agglomerative Clustering                       |
+|  16-17  : DBSCAN Sub-Clustering                                      |
 |  18-20  : Habitability Scoring, 3D and Radar                         |
+|  21     : Outlier Detection                                          |
+|  22-26  : Decision Tree, Naive Bayes, ROC                            |
+|  27     : Apriori Association Rules (General + Habitability)         |
 +----------------------------------------------------------------------+
 """)
